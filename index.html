@@ -7,6 +7,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 :root{--bg:#0f1114;--bg-card:#181c21;--bg-hover:#1f252d;--border:#2a313c;--accent:#e8a838;--accent-dim:#b07e22;--text:#eaedf2;--text-muted:#7a8494;--text-dim:#4a5260;--danger:#e05555;--success:#48b87a;--info:#4a90d9;--sidebar-w:220px;--navbar-h:64px;--radius:10px;--radius-sm:6px;--shadow:0 4px 24px rgba(0,0,0,0.4);--font:'Sora',sans-serif;--mono:'JetBrains Mono',monospace;}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -236,6 +238,20 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .toast.error{border-left-color:var(--danger);}
 @media(max-width:1024px){:root{--sidebar-w:190px;}.kpi-grid{grid-template-columns:1fr 1fr;}.semana-grid{grid-template-columns:repeat(4,1fr);}.charts-grid{grid-template-columns:1fr;}.export-grid{grid-template-columns:1fr;}.form-grid{grid-template-columns:1fr;}.form-group.full-width{grid-column:1;}.modal-wide{width:95vw;}.historial-stats{display:none;}}
 @media(max-width:767px){:root{--navbar-h:56px;--sidebar-w:0px;}.navbar{padding:0 1rem;}.brand-sub,.fecha-actual{display:none;}.layout{flex-direction:column-reverse;}.sidebar{width:100%;height:56px;border-right:none;border-top:1px solid var(--border);padding:0;overflow-x:auto;overflow-y:hidden;display:flex;align-items:center;position:sticky;bottom:0;z-index:90;flex-direction:row;}.sidebar-menu{flex-direction:row;gap:0;height:100%;width:100%;}.sidebar-menu li{flex:1;height:100%;}.sidebar-btn{flex-direction:column;gap:0.2rem;height:100%;padding:0.3rem 0.2rem;font-size:0.6rem;border-radius:0;justify-content:center;align-items:center;border-left:none!important;padding-left:0.2rem!important;}.sidebar-btn svg{width:20px;height:20px;}.sidebar-btn.active{border-bottom:2px solid var(--accent);border-left:none;background:rgba(232,168,56,0.1);}.main-content{padding:1rem;height:calc(100vh - var(--navbar-h) - 56px);overflow-y:auto;}.kpi-grid{grid-template-columns:1fr 1fr;gap:0.6rem;}.kpi-value{font-size:1.5rem;}.semana-grid{grid-template-columns:1fr;}.section-header h2{font-size:1.2rem;}.table-wrapper{overflow-x:auto;-webkit-overflow-scrolling:touch;}.data-table{font-size:0.76rem;}.data-table th,.data-table td{padding:0.5rem 0.6rem;}.modal{width:95vw;max-height:90vh;overflow-y:auto;}.filtros-bar{flex-direction:column;gap:0.5rem;}.filtros-bar input,.filtros-bar select,.filtros-bar button{width:100%;}.productos-grid{grid-template-columns:1fr 1fr;}.charts-grid{grid-template-columns:1fr;}.export-grid{grid-template-columns:1fr;}.toast{left:1rem;right:1rem;max-width:none;bottom:70px;}}
+#map-container{height:520px;border-radius:var(--radius);overflow:hidden;}
+.leaflet-container{background:#1a1f28;font-family:var(--font);}
+.leaflet-popup-content-wrapper{background:var(--bg-card)!important;color:var(--text)!important;border:1px solid var(--border)!important;border-radius:var(--radius-sm)!important;box-shadow:var(--shadow)!important;}
+.leaflet-popup-tip-container .leaflet-popup-tip{background:var(--bg-card)!important;}
+.leaflet-popup-close-button{color:var(--text-muted)!important;}
+.leaflet-popup-close-button:hover{color:var(--text)!important;}
+.leaflet-control-zoom a{background:var(--bg-card)!important;color:var(--text)!important;border-color:var(--border)!important;}
+.leaflet-control-zoom a:hover{background:var(--bg-hover)!important;}
+.leaflet-control-attribution{background:rgba(15,17,20,0.75)!important;color:var(--text-dim)!important;}
+.leaflet-control-attribution a{color:var(--text-muted)!important;}
+.mapa-kpi{display:flex;gap:0.8rem;margin-bottom:1rem;flex-wrap:wrap;}
+.mapa-kpi-item{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.7rem 1rem;font-size:0.78rem;color:var(--text-muted);}
+.mapa-kpi-item strong{display:block;font-size:1.3rem;font-family:var(--mono);color:var(--accent);line-height:1.1;}
+.mapa-btn-refresh{margin-left:auto;}
 @media print{body{background:#fff!important;color:#111!important;}#pantalla-login,#app .navbar,.sidebar,.btn-logout,.modal-overlay,.toast{display:none!important;}#app{display:block!important;}.layout{display:block!important;height:auto!important;}.main-content{padding:0!important;overflow:visible!important;}.tab-content{display:none!important;}#tab-calendario{display:block!important;}.semana-grid{gap:4px!important;}.dia-col{background:#fff!important;border:1px solid #ddd!important;min-height:120px!important;break-inside:avoid;}.dia-header{background:#f9f9f9!important;border-bottom:1px solid #ddd!important;}}
 </style>
 </head>
@@ -291,6 +307,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         <li><button class="sidebar-btn hidden" id="btn-catalogo" onclick="cambiarTab('catalogo')"><svg viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>Catálogo</button></li>
         <li><button class="sidebar-btn hidden" id="btn-stock" onclick="cambiarTab('stock')"><svg viewBox="0 0 24 24"><path d="M5 8h14M5 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8m-9 4h4"/></svg>Stock</button></li>
         <li><button class="sidebar-btn hidden" id="btn-exportar" onclick="cambiarTab('exportar')"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Exportar</button></li>
+        <li><button class="sidebar-btn hidden" id="btn-mapa" onclick="cambiarTab('mapa')"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Mapa</button></li>
       </ul>
     </aside>
     <main class="main-content">
@@ -420,6 +437,19 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         </div>
       </section>
 
+      <!-- MAPA -->
+      <section class="tab-content" id="tab-mapa">
+        <div class="section-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:0.8rem">
+          <div><h2>Mapa de Pedidos Pendientes</h2><p class="section-desc">Ubicación de las obras con pedidos pendientes de entrega.</p></div>
+          <button class="btn btn-ghost mapa-btn-refresh" onclick="limpiarCacheYRenderMapa()"><svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Actualizar mapa</button>
+        </div>
+        <div id="mapa-kpi" class="mapa-kpi"></div>
+        <div class="card" style="padding:0;overflow:hidden;border:1px solid var(--border)">
+          <div id="map-container"></div>
+        </div>
+        <div id="mapa-leyenda" style="margin-top:1rem"></div>
+      </section>
+
       <!-- EXPORTAR -->
       <section class="tab-content" id="tab-exportar">
         <div class="section-header"><h2>Exportar Datos</h2><p class="section-desc">Descargá un archivo CSV con todos los datos.</p></div>
@@ -531,13 +561,15 @@ const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const ROL_CONFIG = {
-  admin:    { tabs:['clientes','pedidos','calendario','gestion','analisis','catalogo','stock','exportar'], inicio:'clientes' },
-  readonly: { tabs:['pedidos','calendario','stock'], inicio:'calendario' },
-  viewer:   { tabs:['pedidos','calendario','gestion','analisis','stock','exportar'], inicio:'pedidos' }
+  admin:    { tabs:['clientes','pedidos','calendario','gestion','analisis','catalogo','stock','exportar','mapa'], inicio:'clientes' },
+  readonly: { tabs:['pedidos','calendario','stock','mapa'], inicio:'calendario' },
+  viewer:   { tabs:['pedidos','calendario','gestion','analisis','stock','exportar','mapa'], inicio:'pedidos' }
 };
 const COLORES = ['#e8a838','#48b87a','#4a90d9','#e05555','#9b6fff','#f06a6a','#36c5a0','#f0b840'];
 
 let clientes=[], pedidos=[], PRODUCTOS=[], stock={};
+let mapaInstance=null;
+const geocodeCache={};
 let semanaBase=inicioSemana(new Date());
 let usuarioActual=null;
 let chartInstances={};
@@ -799,7 +831,7 @@ async function guardarStock() {
 // ── PERMISOS ──────────────────────────────────────────
 function aplicarPermisos() {
   const rol=usuarioActual.rol, cfg=ROL_CONFIG[rol], esAdmin=rol==='admin';
-  ['clientes','pedidos','calendario','gestion','analisis','catalogo','stock','exportar'].forEach(t=>{
+  ['clientes','pedidos','calendario','gestion','analisis','catalogo','stock','exportar','mapa'].forEach(t=>{
     document.getElementById('btn-'+t).classList.toggle('hidden',!cfg.tabs.includes(t));
   });
   document.getElementById('form-nuevo-pedido').style.display=esAdmin?'':'none';
@@ -828,6 +860,7 @@ function cambiarTab(tab) {
   if(tab==='analisis')renderAnalisis();
   if(tab==='catalogo')renderCatalogo();
   if(tab==='stock')renderStock();
+  if(tab==='mapa'){renderMapa();setTimeout(()=>{if(mapaInstance)mapaInstance.invalidateSize();},120);}
 }
 
 // ── PRODUCTOS GRID ────────────────────────────────────
@@ -1104,6 +1137,99 @@ function cerrarModalRemito(){document.getElementById('modal-remito').classList.r
 function handleRemitoFile(file){if(!file)return;if(file.size>5*1024*1024){toast('Imagen muy grande. Máx 5MB.',true);return;}const reader=new FileReader();reader.onload=e=>{_remitoBase64=e.target.result;document.getElementById('remito-img-preview').src=_remitoBase64;document.getElementById('remito-preview').style.display='flex';const btn=document.getElementById('btn-confirmar-remito');btn.disabled=false;btn.style.opacity='1';};reader.readAsDataURL(file);}
 function handleRemitoDrop(event){event.preventDefault();const file=event.dataTransfer.files[0];if(file&&file.type.startsWith('image/'))handleRemitoFile(file);}
 function verRemito(id){const p=pedidos.find(x=>x.id===id);if(!p||!p.remito)return;const win=window.open('','_blank');win.document.write('<html><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="'+p.remito+'" style="max-width:100%;max-height:100vh;object-fit:contain"/></body></html>');}
+
+// ── MAPA ──────────────────────────────────────────────
+const MAPA_ICON = () => L.divIcon({
+  html:'<svg width="30" height="38" viewBox="0 0 30 38" xmlns="http://www.w3.org/2000/svg"><path d="M15 0C6.716 0 0 6.716 0 15c0 9.375 15 23 15 23S30 24.375 30 15C30 6.716 23.284 0 15 0z" fill="#e8a838"/><circle cx="15" cy="15" r="6" fill="#1a1200"/></svg>',
+  iconSize:[30,38], iconAnchor:[15,38], popupAnchor:[0,-40], className:''
+});
+
+async function geocodificar(dir) {
+  const q = dir.trim() + ', Montevideo, Uruguay';
+  if (q in geocodeCache) return geocodeCache[q];
+  try {
+    const r = await fetch(
+      'https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(q) + '&limit=1&countrycodes=uy',
+      { headers:{'Accept-Language':'es-UY,es'} }
+    );
+    if (!r.ok) { geocodeCache[q]=null; return null; }
+    const d = await r.json();
+    if (d.length) { geocodeCache[q]=[parseFloat(d[0].lat),parseFloat(d[0].lon)]; return geocodeCache[q]; }
+  } catch(e) {}
+  geocodeCache[q]=null; return null;
+}
+
+function limpiarCacheYRenderMapa() {
+  Object.keys(geocodeCache).forEach(k=>delete geocodeCache[k]);
+  if (mapaInstance) { mapaInstance.eachLayer(l=>{ if(l instanceof L.Marker) mapaInstance.removeLayer(l); }); }
+  renderMapa();
+}
+
+async function renderMapa() {
+  if (!mapaInstance) {
+    mapaInstance = L.map('map-container').setView([-34.9011,-56.1645], 12);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+      attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+      subdomains:'abcd', maxZoom:19
+    }).addTo(mapaInstance);
+  } else {
+    mapaInstance.eachLayer(l=>{ if(l instanceof L.Marker) mapaInstance.removeLayer(l); });
+  }
+
+  const pendientes = pedidos.filter(p=>(p.estado||'pendiente')==='pendiente');
+  const kpiEl = document.getElementById('mapa-kpi');
+  const leyenda = document.getElementById('mapa-leyenda');
+  const totalPend = pendientes.length;
+  const conDir = pendientes.filter(p=>{ const c=clientes.find(x=>x.id===p.clienteId); return c&&c.direccion; }).length;
+
+  kpiEl.innerHTML =
+    '<div class="mapa-kpi-item"><strong>'+totalPend+'</strong>Pedidos pendientes</div>'+
+    '<div class="mapa-kpi-item"><strong>'+conDir+'</strong>Con dirección</div>'+
+    '<div class="mapa-kpi-item"><strong>'+(totalPend-conDir)+'</strong>Sin dirección</div>';
+
+  if (!totalPend) {
+    leyenda.innerHTML='<p style="color:var(--text-dim);font-style:italic;font-size:0.85rem">No hay pedidos pendientes.</p>';
+    mapaInstance.invalidateSize();
+    return;
+  }
+
+  leyenda.innerHTML='<p style="color:var(--text-muted);font-size:0.78rem">Geocodificando direcciones...</p>';
+
+  const icon = MAPA_ICON();
+  const markers = [], sinDir = [];
+
+  for (let i=0; i<pendientes.length; i++) {
+    const p = pendientes[i];
+    const cliente = clientes.find(c=>c.id===p.clienteId);
+    if (!cliente||!cliente.direccion) { sinDir.push(p); continue; }
+    if (i>0) await new Promise(r=>setTimeout(r,350));
+    const coords = await geocodificar(cliente.direccion);
+    if (coords) {
+      const popup =
+        '<div style="min-width:190px;font-family:Sora,sans-serif">'+
+        '<div style="font-weight:700;color:#e8a838;font-size:0.9rem;margin-bottom:0.35rem">'+esc(p.obra)+'</div>'+
+        '<div style="font-size:0.75rem;color:#7a8494">'+esc(p.empresa)+'</div>'+
+        '<div style="font-size:0.74rem;color:#7a8494;font-family:JetBrains Mono,monospace;margin-top:0.2rem">OC: '+esc(p.oc)+'</div>'+
+        '<div style="font-size:0.74rem;color:#7a8494;margin-top:0.2rem">Entrega: '+formatFecha(p.fecha)+'</div>'+
+        '<div style="font-size:0.7rem;color:#4a5260;margin-top:0.35rem;border-top:1px solid #2a313c;padding-top:0.3rem">📍 '+esc(cliente.direccion)+'</div>'+
+        '</div>';
+      markers.push(L.marker(coords,{icon}).addTo(mapaInstance).bindPopup(popup));
+    } else {
+      sinDir.push(p);
+    }
+  }
+
+  if (markers.length) {
+    mapaInstance.fitBounds(L.featureGroup(markers).getBounds().pad(0.18));
+  }
+  mapaInstance.invalidateSize();
+
+  leyenda.innerHTML = sinDir.length
+    ? '<div style="background:rgba(122,132,148,0.1);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.75rem 1rem;font-size:0.78rem;color:var(--text-muted)">'+
+      '<strong style="color:var(--text)">'+sinDir.length+' pedido'+(sinDir.length!==1?'s':'')+' sin dirección registrada:</strong> '+
+      sinDir.map(p=>esc(p.obra)+' ('+esc(p.oc)+')').join(', ')+'</div>'
+    : '';
+}
 
 // ── UTILS ─────────────────────────────────────────────
 function val(id){const e=document.getElementById(id);return e?e.value.trim():'';}
