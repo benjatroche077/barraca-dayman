@@ -710,7 +710,16 @@ async function hacerLogin() {
 }
 
 async function iniciarApp(authUser) {
-  const { data: perfil } = await sb.from('perfiles').select('*').eq('id', authUser.id).single();
+  const { data: perfil, error: perfilError } = await sb.from('perfiles').select('*').eq('id', authUser.id).single();
+  if (perfilError) {
+    const errEl = document.getElementById('login-error');
+    errEl.textContent = 'Error al cargar perfil: ' + perfilError.message;
+    errEl.classList.add('visible');
+    document.getElementById('btn-login').textContent = 'Ingresar';
+    document.getElementById('btn-login').disabled = false;
+    await sb.auth.signOut();
+    return;
+  }
   const rol = perfil?.rol || 'readonly';
   const nombre = perfil?.nombre || authUser.email;
   usuarioActual = { id: authUser.id, email: authUser.email, nombre, rol };
