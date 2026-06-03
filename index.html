@@ -356,7 +356,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
             <div class="form-group full-width"><label>Cliente / Obra <span class="required">*</span></label><select id="p-cliente"><option value="">— Seleccioná un cliente —</option></select></div>
             <div class="form-group"><label>Fecha de Entrega <span class="required">*</span></label><input type="date" id="p-fecha"/></div>
             <div class="form-group"><label>Orden de Compra <span class="required">*</span></label><input type="text" id="p-oc" placeholder="Ej: OC-2024-0045"/></div>
-            <div class="form-group full-width"><label>Transportista</label><input type="text" id="p-transportista" placeholder="Ej: Juan Rodríguez / Camión BD-1234"/></div>
+            <div class="form-group full-width"><label>Tipo de Entrega <span class="required">*</span></label><select id="p-tipo-entrega" onchange="toggleTransportista()"><option value="envio">🚛 Envío a obra</option><option value="retiro">🏭 Retiro en centro logístico (a cargo del comprador)</option></select></div>
+            <div class="form-group full-width" id="transportista-group"><label>Transportista</label><input type="text" id="p-transportista" placeholder="Ej: Juan Rodríguez / Camión BD-1234"/></div>
           </div>
           <span class="productos-section-label">Productos <span class="required">*</span></span>
           <div class="productos-grid" id="productos-grid"></div>
@@ -698,6 +699,7 @@ async function cargarDatos() {
       id:p.id, clienteId:p.cliente_id, empresa:p.empresa, obra:p.obra,
       fecha:p.fecha, oc:p.oc, transportista:p.transportista,
       comentarios:p.comentarios, estado:p.estado||'pendiente', remito:p.remito,
+      tipoEntrega:p.tipo_entrega||'envio',
       productos:(p.pedido_items||[]).map(it=>({id:it.producto_id,nombre:it.nombre,cantidad:it.cantidad}))
     }));
     setSyncStatus('online');
@@ -770,17 +772,19 @@ async function guardarPedido() {
   const sinStock=sel.filter(pr=>(stock[pr.id]||0)<pr.cantidad);
   if(sinStock.length){toast('Stock insuficiente: '+sinStock.map(pr=>pr.nombre+' (hay '+(stock[pr.id]||0)+')').join(', '),true);return;}
   setSyncStatus('syncing');
-  const {data:pd,error:pe}=await sb.from('pedidos').insert({cliente_id:c.id,empresa:c.empresa,obra:c.obra,fecha,oc,transportista:val('p-transportista'),comentarios:val('p-comentarios'),estado:'pendiente'}).select().single();
+  const tipoEntrega=val('p-tipo-entrega')||'envio';
+  const {data:pd,error:pe}=await sb.from('pedidos').insert({cliente_id:c.id,empresa:c.empresa,obra:c.obra,fecha,oc,transportista:tipoEntrega==='retiro'?null:val('p-transportista'),comentarios:val('p-comentarios'),estado:'pendiente',tipo_entrega:tipoEntrega}).select().single();
   if(pe){toast('Error: '+pe.message,true);setSyncStatus('offline');return;}
   await sb.from('pedido_items').insert(sel.map(pr=>({pedido_id:pd.id,producto_id:pr.id,nombre:pr.nombre,cantidad:pr.cantidad})));
   for(const pr of sel){
     stock[pr.id]=(stock[pr.id]||0)-pr.cantidad;
     await sb.from('stock').upsert({producto_id:pr.id,cantidad:stock[pr.id],updated_at:new Date().toISOString()});
   }
-  pedidos.push({id:pd.id,clienteId:c.id,empresa:c.empresa,obra:c.obra,fecha,oc,transportista:val('p-transportista'),comentarios:val('p-comentarios'),estado:'pendiente',productos:sel});
+  pedidos.push({id:pd.id,clienteId:c.id,empresa:c.empresa,obra:c.obra,fecha,oc,transportista:tipoEntrega==='retiro'?null:val('p-transportista'),comentarios:val('p-comentarios'),estado:'pendiente',tipoEntrega,productos:sel});
   setSyncStatus('online');
   limpiar(['p-oc','p-comentarios','p-transportista']);
   document.getElementById('p-cliente').value=''; document.getElementById('p-fecha').value='';
+  document.getElementById('p-tipo-entrega').value='envio'; toggleTransportista();
   resetProductos(); renderPedidos(); renderCalendario(); verificarAlertaStock();
   toast('Pedido "'+oc+'" guardado ✓');
 }
@@ -926,6 +930,8 @@ function cambiarTab(tab) {
 }
 
 // ── PRODUCTOS GRID ────────────────────────────────────
+function toggleTransportista(){const esRetiro=document.getElementById('p-tipo-entrega')?.value==='retiro';const g=document.getElementById('transportista-group');if(g)g.style.display=esRetiro?'none':'';}
+
 function construirProductosGrid() {
   const grid=document.getElementById('productos-grid');
   grid.innerHTML=PRODUCTOS.map(p=>
@@ -972,7 +978,10 @@ function botonesEstado(id,estadoActual,esLogistica,esViewer){
     return '';
   }
   const opts={pendiente:'Pendiente',camino:'En camino',entregado:'Entregado'};
-  return Object.entries(opts).filter(([k])=>k!==estadoActual).map(([k,lbl])=>'<button class="estado-btn btn-'+k+'" onclick="cambiarEstado('+id+',\''+k+'\')">'+lbl+'</button>').join('');
+  return Object.entries(opts).filter(([k])=>k!==estadoActual).map(([k,lbl])=>{
+    const fn=k==='camino'?'pedirRemitoYCambiarEstado('+id+')':'cambiarEstado('+id+',\''+k+'\')';
+    return '<button class="estado-btn btn-'+k+'" onclick="'+fn+'">'+lbl+'</button>';
+  }).join('');
 }
 
 function renderPedidos(){
@@ -995,7 +1004,14 @@ function renderPedidos(){
     const prods=(p.productos||[]).map(pr=>'<span class="prod-badge">'+esc(pr.nombre)+' &times;'+pr.cantidad+'</span>').join('');
     const btnEstado=botonesEstado(p.id,estado,esLogistica,esViewer);
     const remitoThumb=p.remito?'<img src="'+p.remito+'" class="remito-thumb" onclick="verRemito('+p.id+')" title="Ver remito" style="margin-top:0.3rem"/>':'';
-    const transTd=p.transportista?'<td><span style="font-size:0.8rem">🚛 '+esc(p.transportista)+'</span></td>':'<td style="color:var(--text-dim)">&#x2014;</td>';
+    const esRetiro=(p.tipoEntrega||'envio')==='retiro';
+    const entregaBadge=esRetiro
+      ?'<span style="font-size:0.7rem;background:rgba(41,128,185,0.1);color:#2980b9;border:1px solid rgba(41,128,185,0.3);border-radius:4px;padding:0.15rem 0.5rem;white-space:nowrap">🏭 Retiro</span>'
+      :'<span style="font-size:0.7rem;background:rgba(39,174,96,0.1);color:#27ae60;border:1px solid rgba(39,174,96,0.3);border-radius:4px;padding:0.15rem 0.5rem;white-space:nowrap">🚛 Envío</span>';
+    const transTd=esRetiro
+      ?'<td>'+entregaBadge+'<div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.25rem">A cargo del comprador</div></td>'
+      :p.transportista?'<td>'+entregaBadge+'<div style="font-size:0.78rem;margin-top:0.25rem">'+esc(p.transportista)+'</div></td>'
+      :'<td>'+entregaBadge+'</td>';
     return '<tr>'+
       '<td>'+estadoBadge(estado)+remitoThumb+(btnEstado?'<div style="margin-top:0.4rem">'+btnEstado+'</div>':'')+'</td>'+
       '<td><strong>'+esc(p.obra)+'</strong></td>'+
