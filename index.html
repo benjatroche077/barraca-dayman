@@ -1487,11 +1487,12 @@ async function eliminarImportacion(id) {
 function renderImportaciones() {
   const tbody=document.getElementById('body-importaciones'); if(!tbody)return;
   const esAdmin=usuarioActual?.rol==='admin';
+  const puedeEditarEstado=esAdmin||usuarioActual?.rol==='readonly';
   if(!importaciones.length){tbody.innerHTML='<tr class="empty-row"><td colspan="8">No hay importaciones registradas.</td></tr>';return;}
   const ordenEstados=['en_transito','en_aduana','llegado','distribuido'];
   tbody.innerHTML=importaciones.map(imp=>{
     const prods=(imp.productos||[]).map(pr=>'<span class="prod-badge">'+esc(pr.nombre)+' &times;'+pr.cantidad+'</span>').join('');
-    const btnsCambio=esAdmin
+    const btnsCambio=puedeEditarEstado
       ?ordenEstados.filter(e=>e!==imp.estado).map(e=>'<button class="estado-btn" style="font-size:0.7rem" onclick="cambiarEstadoImport('+imp.id+',\''+e+'\')">'+IMP_ESTADOS[e].label+'</button>').join('')
       :'';
     const fechaLlegadaCell=imp.fechaLlegada
