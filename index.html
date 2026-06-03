@@ -1153,6 +1153,15 @@ const MAPA_ICON = (color) => L.divIcon({
   iconSize:[30,38], iconAnchor:[15,38], popupAnchor:[0,-40], className:''
 });
 
+const MAPA_ICON_LOGISTICA = () => L.divIcon({
+  html:'<svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">'+
+       '<rect x="2" y="2" width="36" height="36" rx="8" fill="#181c21" stroke="#eaedf2" stroke-width="2.5"/>'+
+       '<text x="20" y="15" text-anchor="middle" font-size="7" font-weight="700" font-family="Sora,sans-serif" fill="#7a8494" letter-spacing="0.5">LOG</text>'+
+       '<text x="20" y="28" text-anchor="middle" font-size="13" font-weight="800" font-family="Sora,sans-serif" fill="#eaedf2">74</text>'+
+       '</svg>',
+  iconSize:[40,40], iconAnchor:[20,20], popupAnchor:[0,-22], className:''
+});
+
 async function geocodificar(dir) {
   const q = dir.trim() + ', Montevideo, Uruguay';
   if (q in geocodeCache) return geocodeCache[q];
@@ -1235,13 +1244,33 @@ async function renderMapa() {
     }
   }
 
-  if (markers.length) {
-    mapaInstance.fitBounds(L.featureGroup(markers).getBounds().pad(0.18));
+  // Marker fijo: Logística 74 (centro logístico)
+  const coordsLog = await geocodificar('Ruta 74, Joaquín Suárez, Canelones, Uruguay');
+  let logMarker = null;
+  if (coordsLog) {
+    logMarker = L.marker(coordsLog, {icon: MAPA_ICON_LOGISTICA(), zIndexOffset:1000})
+      .addTo(mapaInstance)
+      .bindPopup(
+        '<div style="min-width:170px;font-family:Sora,sans-serif">'+
+        '<div style="font-weight:800;color:#eaedf2;font-size:0.92rem;margin-bottom:0.3rem">🏭 Logística 74</div>'+
+        '<div style="font-size:0.76rem;color:#7a8494;margin-bottom:0.2rem">Centro Logístico — Origen de despachos</div>'+
+        '<div style="font-size:0.7rem;color:#4a5260;border-top:1px solid #2a313c;padding-top:0.3rem;margin-top:0.3rem">📍 Ruta 74, Joaquín Suárez, Canelones</div>'+
+        '</div>'
+      );
+  }
+
+  // Ajustar vista incluyendo el centro logístico
+  const todosLosMarkers = logMarker ? [...markers, logMarker] : markers;
+  if (todosLosMarkers.length) {
+    mapaInstance.fitBounds(L.featureGroup(todosLosMarkers).getBounds().pad(0.18));
   }
   mapaInstance.invalidateSize();
 
   // Leyenda de colores por empresa
-  let legendHTML = '';
+  let legendHTML = '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.75rem 1rem;margin-bottom:0.7rem;display:flex;align-items:center;gap:0.8rem">'+
+    '<svg width="28" height="28" viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="36" rx="8" fill="#181c21" stroke="#eaedf2" stroke-width="2.5"/><text x="20" y="15" text-anchor="middle" font-size="7" font-weight="700" font-family="Sora,sans-serif" fill="#7a8494" letter-spacing="0.5">LOG</text><text x="20" y="28" text-anchor="middle" font-size="13" font-weight="800" font-family="Sora,sans-serif" fill="#eaedf2">74</text></svg>'+
+    '<div><div style="font-size:0.82rem;font-weight:700;color:var(--text)">Logística 74</div><div style="font-size:0.74rem;color:var(--text-muted)">Centro Logístico · Ruta 74, Joaquín Suárez, Canelones</div></div>'+
+    '</div>';
   if (empresaMap.size > 0) {
     legendHTML += '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.75rem 1rem;margin-bottom:0.7rem">'+
       '<div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-muted);margin-bottom:0.6rem">Empresas</div>'+
