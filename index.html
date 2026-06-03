@@ -252,6 +252,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .mapa-kpi-item{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.7rem 1rem;font-size:0.78rem;color:var(--text-muted);}
 .mapa-kpi-item strong{display:block;font-size:1.3rem;font-family:var(--mono);color:var(--accent);line-height:1.1;}
 .mapa-btn-refresh{margin-left:auto;}
+.import-estado-en_transito{background:rgba(74,144,217,0.13);color:#4a90d9;border-color:rgba(74,144,217,0.3);}
+.import-estado-en_aduana{background:rgba(232,168,56,0.13);color:#e8a838;border-color:rgba(232,168,56,0.3);}
+.import-estado-llegado{background:rgba(72,184,122,0.13);color:#48b87a;border-color:rgba(72,184,122,0.3);}
+.import-estado-distribuido{background:rgba(122,132,148,0.12);color:#7a8494;border-color:rgba(122,132,148,0.25);}
+.import-estado-dot-en_transito{background:#4a90d9;}
+.import-estado-dot-en_aduana{background:#e8a838;}
+.import-estado-dot-llegado{background:#48b87a;}
+.import-estado-dot-distribuido{background:#7a8494;}
 .mapa-ruta-panel{background:var(--bg-card);border:1px solid rgba(232,168,56,0.45);border-radius:var(--radius-sm);padding:0.75rem 1rem;display:flex;align-items:center;gap:0.9rem;flex-wrap:wrap;}
 .mapa-ruta-origen{font-size:0.78rem;font-weight:600;color:var(--text-muted);}
 .mapa-ruta-destino{font-size:0.88rem;font-weight:700;color:var(--accent);}
@@ -315,6 +323,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         <li><button class="sidebar-btn hidden" id="btn-stock" onclick="cambiarTab('stock')"><svg viewBox="0 0 24 24"><path d="M5 8h14M5 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8m-9 4h4"/></svg>Stock</button></li>
         <li><button class="sidebar-btn hidden" id="btn-exportar" onclick="cambiarTab('exportar')"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Exportar</button></li>
         <li><button class="sidebar-btn hidden" id="btn-mapa" onclick="cambiarTab('mapa')"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Mapa</button></li>
+        <li><button class="sidebar-btn hidden" id="btn-importaciones" onclick="cambiarTab('importaciones')"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>Importaciones</button></li>
       </ul>
     </aside>
     <main class="main-content">
@@ -458,6 +467,36 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         <div id="mapa-leyenda" style="margin-top:0.8rem"></div>
       </section>
 
+      <!-- IMPORTACIONES -->
+      <section class="tab-content" id="tab-importaciones">
+        <div class="section-header"><h2>Importaciones</h2><p class="section-desc">Registrá y seguí el estado de las importaciones de bloques.</p></div>
+        <div class="card" id="form-nueva-importacion">
+          <div class="form-grid">
+            <div class="form-group"><label>Nombre / Referencia <span class="required">*</span></label><input type="text" id="imp-nombre" placeholder="Ej: Importación Mayo 2025"/></div>
+            <div class="form-group"><label>Proveedor</label><input type="text" id="imp-proveedor" placeholder="Ej: Bloquera San José"/></div>
+            <div class="form-group"><label>Fecha de Pedido <span class="required">*</span></label><input type="date" id="imp-fecha-pedido"/></div>
+            <div class="form-group"><label>Fecha de Llegada Estimada</label><input type="date" id="imp-fecha-llegada"/></div>
+            <div class="form-group full-width"><label>Comentarios</label><textarea id="imp-comentarios" rows="2" placeholder="Notas adicionales..."></textarea></div>
+          </div>
+          <span class="productos-section-label" style="margin-top:0.5rem">Productos incluidos <span class="required">*</span></span>
+          <div class="productos-grid" id="import-productos-grid"></div>
+          <div class="resumen-pedido" id="import-resumen" style="display:none">
+            <div class="resumen-pedido-titulo">Productos incluidos</div>
+            <div class="resumen-items" id="import-resumen-items"></div>
+          </div>
+          <div class="form-actions"><button class="btn btn-primary" onclick="guardarImportacion()"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Guardar Importación</button></div>
+        </div>
+        <div class="section-header" style="margin-top:1rem"><h2>Importaciones Registradas</h2></div>
+        <div class="card">
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead><tr><th>Estado</th><th>Nombre</th><th>Proveedor</th><th>Fecha Pedido</th><th>Fecha Llegada</th><th>Productos</th><th>Comentarios</th><th>Acciones</th></tr></thead>
+              <tbody id="body-importaciones"><tr class="empty-row"><td colspan="8">No hay importaciones registradas.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <!-- EXPORTAR -->
       <section class="tab-content" id="tab-exportar">
         <div class="section-header"><h2>Exportar Datos</h2><p class="section-desc">Descargá un archivo CSV con todos los datos.</p></div>
@@ -569,13 +608,13 @@ const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const ROL_CONFIG = {
-  admin:    { tabs:['clientes','pedidos','calendario','gestion','analisis','catalogo','stock','exportar','mapa'], inicio:'clientes' },
+  admin:    { tabs:['clientes','pedidos','calendario','gestion','analisis','catalogo','stock','exportar','mapa','importaciones'], inicio:'clientes' },
   readonly: { tabs:['pedidos','calendario','stock','mapa'], inicio:'calendario' },
-  viewer:   { tabs:['pedidos','calendario','gestion','analisis','stock','exportar','mapa'], inicio:'pedidos' }
+  viewer:   { tabs:['pedidos','calendario','gestion','analisis','stock','exportar','mapa','importaciones'], inicio:'pedidos' }
 };
 const COLORES = ['#e8a838','#48b87a','#4a90d9','#e05555','#9b6fff','#f06a6a','#36c5a0','#f0b840'];
 
-let clientes=[], pedidos=[], PRODUCTOS=[], stock={};
+let clientes=[], pedidos=[], PRODUCTOS=[], stock={}, importaciones=[];
 let mapaInstance=null, routeLayer=null;
 const geocodeCache={};
 let semanaBase=inicioSemana(new Date());
@@ -621,6 +660,7 @@ async function iniciarApp(authUser) {
   document.getElementById('fechaActual').textContent=new Date().toLocaleDateString('es-UY',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   await cargarDatos();
   construirProductosGrid();
+  construirImportGrid();
   aplicarPermisos();
   cambiarTab(ROL_CONFIG[rol].inicio);
   setTimeout(verificarAlertaStock, 800);
@@ -628,7 +668,7 @@ async function iniciarApp(authUser) {
 
 async function cerrarSesion() {
   await sb.auth.signOut();
-  usuarioActual=null; clientes=[]; pedidos=[]; PRODUCTOS=[]; stock={};
+  usuarioActual=null; clientes=[]; pedidos=[]; PRODUCTOS=[]; stock={}; importaciones=[];
   document.getElementById('app').classList.remove('visible');
   document.getElementById('pantalla-login').style.display='flex';
   document.getElementById('login-email').value='';
@@ -664,6 +704,18 @@ async function cargarDatos() {
     setSyncStatus('offline');
     toast('Error cargando datos: '+e.message, true);
   }
+  // Importaciones — tabla separada, carga independiente para no romper app si no existe aún
+  try {
+    const rImp = await sb.from('importaciones').select('*, importacion_items(*)').order('created_at',{ascending:false});
+    if (!rImp.error) {
+      importaciones = rImp.data.map(i=>({
+        id:i.id, nombre:i.nombre, proveedor:i.proveedor,
+        fechaPedido:i.fecha_pedido, fechaLlegada:i.fecha_llegada,
+        estado:i.estado||'en_transito', comentarios:i.comentarios,
+        productos:(i.importacion_items||[]).map(it=>({id:it.producto_id,nombre:it.nombre,cantidad:it.cantidad}))
+      }));
+    }
+  } catch(e) {}
 }
 
 // ── CLIENTES ──────────────────────────────────────────
@@ -839,7 +891,7 @@ async function guardarStock() {
 // ── PERMISOS ──────────────────────────────────────────
 function aplicarPermisos() {
   const rol=usuarioActual.rol, cfg=ROL_CONFIG[rol], esAdmin=rol==='admin';
-  ['clientes','pedidos','calendario','gestion','analisis','catalogo','stock','exportar','mapa'].forEach(t=>{
+  ['clientes','pedidos','calendario','gestion','analisis','catalogo','stock','exportar','mapa','importaciones'].forEach(t=>{
     document.getElementById('btn-'+t).classList.toggle('hidden',!cfg.tabs.includes(t));
   });
   document.getElementById('form-nuevo-pedido').style.display=esAdmin?'':'none';
@@ -869,6 +921,7 @@ function cambiarTab(tab) {
   if(tab==='catalogo')renderCatalogo();
   if(tab==='stock')renderStock();
   if(tab==='mapa'){renderMapa();setTimeout(()=>{if(mapaInstance)mapaInstance.invalidateSize();},120);}
+  if(tab==='importaciones')renderImportaciones();
 }
 
 // ── PRODUCTOS GRID ────────────────────────────────────
@@ -1331,6 +1384,129 @@ async function renderMapa() {
       sinDir.map(p=>esc(p.obra)+' ('+esc(p.oc)+')').join(', ')+'</div>';
   }
   leyenda.innerHTML = legendHTML;
+}
+
+// ── IMPORTACIONES ─────────────────────────────────────
+const IMP_ESTADOS = {
+  en_transito: { label:'En tránsito',   cls:'import-estado-en_transito'  },
+  en_aduana:   { label:'En aduana',     cls:'import-estado-en_aduana'    },
+  llegado:     { label:'Llegó al depósito', cls:'import-estado-llegado'  },
+  distribuido: { label:'Distribuido',   cls:'import-estado-distribuido'  }
+};
+
+function importBadge(estado) {
+  const c = IMP_ESTADOS[estado] || IMP_ESTADOS.en_transito;
+  return '<span class="estado-badge '+c.cls+'"><span class="estado-dot import-estado-dot-'+estado+'"></span>'+c.label+'</span>';
+}
+
+function construirImportGrid() {
+  const grid = document.getElementById('import-productos-grid');
+  if (!grid) return;
+  grid.innerHTML = PRODUCTOS.map(p=>
+    '<div class="producto-item" id="ipi-'+p.id+'">'+
+    '<div class="producto-nombre">'+esc(p.nombre)+'</div>'+
+    '<div class="producto-controls">'+
+    '<button class="qty-btn" onclick="cambiarImpQty(\''+p.id+'\',-1)">&#x2212;</button>'+
+    '<input class="qty-input" type="number" min="0" value="0" id="iqty-'+p.id+'" oninput="actualizarImportResumen()"/>'+
+    '<button class="qty-btn" onclick="cambiarImpQty(\''+p.id+'\',1)">+</button>'+
+    '</div></div>'
+  ).join('');
+}
+
+function cambiarImpQty(id,delta){const inp=document.getElementById('iqty-'+id);inp.value=Math.max(0,parseInt(inp.value||0)+delta);actualizarImportResumen();}
+
+function actualizarImportResumen() {
+  const sel = getImportProductos();
+  PRODUCTOS.forEach(p=>{const q=parseInt(document.getElementById('iqty-'+p.id)?.value||0);document.getElementById('ipi-'+p.id)?.classList.toggle('activo',q>0);});
+  const res = document.getElementById('import-resumen'); if (!res) return;
+  if (!sel.length) { res.style.display='none'; return; }
+  res.style.display='block';
+  document.getElementById('import-resumen-items').innerHTML=sel.map(s=>'<span class="resumen-tag">'+esc(s.nombre)+' &times; '+s.cantidad+'</span>').join('');
+}
+
+function getImportProductos(){return PRODUCTOS.map(p=>({...p,cantidad:parseInt(document.getElementById('iqty-'+p.id)?.value||0)})).filter(p=>p.cantidad>0);}
+
+function resetImportProductos(){PRODUCTOS.forEach(p=>{const inp=document.getElementById('iqty-'+p.id);if(inp)inp.value=0;document.getElementById('ipi-'+p.id)?.classList.remove('activo');});const r=document.getElementById('import-resumen');if(r)r.style.display='none';}
+
+async function guardarImportacion() {
+  const nombre=val('imp-nombre'), fechaPedido=val('imp-fecha-pedido');
+  if(!nombre||!fechaPedido){toast('Completá Nombre y Fecha de Pedido',true);return;}
+  const sel=getImportProductos();
+  if(!sel.length){toast('Seleccioná al menos un producto',true);return;}
+  setSyncStatus('syncing');
+  const {data:imp,error:ie}=await sb.from('importaciones').insert({
+    nombre, proveedor:val('imp-proveedor'),
+    fecha_pedido:fechaPedido,
+    fecha_llegada:val('imp-fecha-llegada')||null,
+    estado:'en_transito', comentarios:val('imp-comentarios')
+  }).select().single();
+  if(ie){toast('Error: '+ie.message,true);setSyncStatus('offline');return;}
+  const {error:iie}=await sb.from('importacion_items').insert(sel.map(pr=>({importacion_id:imp.id,producto_id:pr.id,nombre:pr.nombre,cantidad:pr.cantidad})));
+  if(iie){toast('Error guardando items: '+iie.message,true);setSyncStatus('offline');return;}
+  importaciones.unshift({id:imp.id,nombre,proveedor:val('imp-proveedor'),fechaPedido,fechaLlegada:val('imp-fecha-llegada')||null,estado:'en_transito',comentarios:val('imp-comentarios'),productos:sel});
+  setSyncStatus('online');
+  limpiar(['imp-nombre','imp-proveedor','imp-fecha-pedido','imp-fecha-llegada','imp-comentarios']);
+  resetImportProductos(); renderImportaciones();
+  toast('Importación "'+nombre+'" guardada ✓');
+}
+
+async function cambiarEstadoImport(id,nuevoEstado) {
+  const idx=importaciones.findIndex(x=>x.id===id); if(idx===-1)return;
+  setSyncStatus('syncing');
+  const {error}=await sb.from('importaciones').update({estado:nuevoEstado}).eq('id',id);
+  if(error){toast('Error: '+error.message,true);setSyncStatus('offline');return;}
+  importaciones[idx].estado=nuevoEstado;
+  setSyncStatus('online'); renderImportaciones();
+  toast('Estado: '+IMP_ESTADOS[nuevoEstado].label+' ✓');
+}
+
+async function editarFechaLlegadaImport(id) {
+  const imp=importaciones.find(x=>x.id===id); if(!imp)return;
+  const nueva=prompt('Fecha de llegada (AAAA-MM-DD):',imp.fechaLlegada||'');
+  if(nueva===null)return;
+  setSyncStatus('syncing');
+  const {error}=await sb.from('importaciones').update({fecha_llegada:nueva||null}).eq('id',id);
+  if(error){toast('Error: '+error.message,true);setSyncStatus('offline');return;}
+  imp.fechaLlegada=nueva||null;
+  setSyncStatus('online'); renderImportaciones();
+  toast('Fecha actualizada ✓');
+}
+
+async function eliminarImportacion(id) {
+  const imp=importaciones.find(x=>x.id===id); if(!imp)return;
+  if(!confirm('¿Eliminás la importación "'+imp.nombre+'"?'))return;
+  setSyncStatus('syncing');
+  const {error}=await sb.from('importaciones').delete().eq('id',id);
+  if(error){toast('Error: '+error.message,true);setSyncStatus('offline');return;}
+  importaciones=importaciones.filter(x=>x.id!==id);
+  setSyncStatus('online'); renderImportaciones();
+  toast('Importación eliminada');
+}
+
+function renderImportaciones() {
+  const tbody=document.getElementById('body-importaciones'); if(!tbody)return;
+  const esAdmin=usuarioActual?.rol==='admin';
+  if(!importaciones.length){tbody.innerHTML='<tr class="empty-row"><td colspan="8">No hay importaciones registradas.</td></tr>';return;}
+  const ordenEstados=['en_transito','en_aduana','llegado','distribuido'];
+  tbody.innerHTML=importaciones.map(imp=>{
+    const prods=(imp.productos||[]).map(pr=>'<span class="prod-badge">'+esc(pr.nombre)+' &times;'+pr.cantidad+'</span>').join('');
+    const btnsCambio=esAdmin
+      ?ordenEstados.filter(e=>e!==imp.estado).map(e=>'<button class="estado-btn" style="font-size:0.7rem" onclick="cambiarEstadoImport('+imp.id+',\''+e+'\')">'+IMP_ESTADOS[e].label+'</button>').join('')
+      :'';
+    const fechaLlegadaCell=imp.fechaLlegada
+      ?'<span style="font-family:var(--mono)">'+formatFecha(imp.fechaLlegada)+'</span>'+(esAdmin?'<br><button class="estado-btn" style="font-size:0.68rem;margin-top:0.25rem" onclick="editarFechaLlegadaImport('+imp.id+')">Editar</button>':'')
+      :'<span style="color:var(--text-dim)">—</span>'+(esAdmin?'<br><button class="estado-btn" style="font-size:0.68rem;margin-top:0.25rem" onclick="editarFechaLlegadaImport('+imp.id+')">Agregar</button>':'');
+    return '<tr>'+
+      '<td>'+importBadge(imp.estado)+(btnsCambio?'<div style="margin-top:0.4rem;display:flex;flex-wrap:wrap;gap:0.3rem">'+btnsCambio+'</div>':'')+'</td>'+
+      '<td><strong>'+esc(imp.nombre)+'</strong></td>'+
+      '<td>'+(esc(imp.proveedor)||'<span style="color:var(--text-dim)">—</span>')+'</td>'+
+      '<td style="font-family:var(--mono);color:var(--accent)">'+formatFecha(imp.fechaPedido)+'</td>'+
+      '<td>'+fechaLlegadaCell+'</td>'+
+      '<td><div class="productos-cell">'+prods+'</div></td>'+
+      '<td style="color:var(--text-muted);font-size:0.78rem">'+(esc(imp.comentarios)||'—')+'</td>'+
+      '<td>'+(esAdmin?'<div class="actions-cell"><button class="btn btn-danger" onclick="eliminarImportacion('+imp.id+')">Eliminar</button></div>':'')+'</td>'+
+      '</tr>';
+  }).join('');
 }
 
 // ── UTILS ─────────────────────────────────────────────
