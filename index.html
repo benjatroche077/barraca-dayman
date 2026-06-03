@@ -142,9 +142,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .dia-col.hoy .dia-header{background:rgba(192,57,43,0.1);border-bottom-color:var(--accent);}
 .dia-col.hoy .dia-nombre,.dia-col.hoy .dia-numero{color:var(--accent);}
 .dia-pedidos{padding:0.5rem;display:flex;flex-direction:column;gap:0.35rem;}
-.pedido-chip{background:rgba(192,57,43,0.1);border:1px solid rgba(192,57,43,0.25);border-radius:5px;padding:0.4rem 0.55rem;}
-.pc-obra{font-size:0.72rem;font-weight:600;color:var(--accent);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.pc-oc{font-size:0.65rem;color:var(--text-muted);font-family:var(--mono);display:block;}
+.pedido-chip{background:rgba(192,57,43,0.07);border:1px solid rgba(192,57,43,0.2);border-radius:6px;padding:0.45rem 0.6rem;cursor:default;}
+.pedido-chip:hover{background:rgba(192,57,43,0.13);}
+.pc-obra{font-size:0.74rem;font-weight:700;color:var(--accent);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pc-empresa{font-size:0.65rem;color:var(--text-muted);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:0.05rem;}
+.pc-oc{font-size:0.64rem;color:var(--text-muted);font-family:var(--mono);display:block;margin-top:0.1rem;}
+.pc-productos{display:flex;flex-wrap:wrap;gap:0.2rem;margin-top:0.3rem;}
+.pc-prod-tag{background:rgba(192,57,43,0.1);border:1px solid rgba(192,57,43,0.2);color:var(--accent);font-size:0.6rem;font-weight:700;border-radius:3px;padding:0.1rem 0.35rem;white-space:nowrap;}
+.pc-meta{font-size:0.62rem;color:var(--text-dim);display:block;margin-top:0.2rem;}
 .estado-badge{display:inline-flex;align-items:center;gap:0.35rem;border-radius:999px;font-size:0.72rem;font-weight:700;padding:0.28rem 0.75rem;white-space:nowrap;letter-spacing:0.02em;border:1px solid;}
 .estado-pendiente{background:rgba(122,132,148,0.12);color:var(--text-muted);border-color:rgba(122,132,148,0.25);}
 .estado-camino{background:rgba(41,128,185,0.13);color:#4a90d9;border-color:rgba(41,128,185,0.3);}
@@ -1397,7 +1402,25 @@ function renderCalendario(){
     col.innerHTML='<div class="dia-header"><div class="dia-nombre">'+dias[i]+'</div><div class="dia-numero">'+d.getDate()+'</div></div>'+
       '<div class="dia-pedidos">'+(pp.length===0
         ?'<span style="font-size:0.68rem;color:var(--text-dim);text-align:center;display:block;padding:0.5rem">Sin pedidos</span>'
-        :pp.map(p=>{const ec={pendiente:'#7a8494',camino:'#4a90d9',entregado:'#48b87a'}[p.estado||'pendiente'];const horaStr=p.horaInicio?(p.horaInicio+(p.horaFin?' – '+p.horaFin:'')):'';return '<div class="pedido-chip" style="border-left:3px solid '+ec+'"><span class="pc-obra">'+esc(p.obra)+'</span><span class="pc-oc">'+esc(p.oc)+(horaStr?' · ⏰'+horaStr:'')+'</span></div>';}).join('')
+        :pp.map(p=>{
+            const ec={pendiente:'#7a8494',camino:'#4a90d9',entregado:'#48b87a'}[p.estado||'pendiente'];
+            const horaStr=p.horaInicio?(p.horaInicio+(p.horaFin?' – '+p.horaFin:'')):'';
+            const prods=(p.productos||[]).map(pr=>'<span class="pc-prod-tag">'+esc(pr.nombre.replace(/^Pallet /,''))+' ×'+pr.cantidad+'</span>').join('');
+            const esRetiro=(p.tipoEntrega||'envio')==='retiro';
+            const metaStr=[
+              horaStr?'⏰ '+horaStr:'',
+              p.transportista&&!esRetiro?'🚛 '+esc(p.transportista):'',
+              esRetiro?'🏭 Retiro':'',
+              p.comentarios?'💬 '+esc(p.comentarios.slice(0,40))+(p.comentarios.length>40?'…':''):''
+            ].filter(Boolean).join(' · ');
+            return '<div class="pedido-chip" style="border-left:3px solid '+ec+'">'+
+              '<span class="pc-obra">'+esc(p.obra)+'</span>'+
+              '<span class="pc-empresa">'+esc(p.empresa)+'</span>'+
+              '<span class="pc-oc">'+esc(p.oc)+'</span>'+
+              (prods?'<div class="pc-productos">'+prods+'</div>':'')+
+              (metaStr?'<span class="pc-meta">'+metaStr+'</span>':'')+
+              '</div>';
+          }).join('')
       )+'</div>';
     grid.appendChild(col);
   }
