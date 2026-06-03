@@ -204,6 +204,16 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .stock-card-label{font-size:0.68rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;margin-top:0.2rem;}
 .stock-card.stock-bajo .stock-card-cantidad{color:var(--danger);}
 .stock-card.stock-ok .stock-card-cantidad{color:var(--success);}
+.stock-proy{margin-top:0.7rem;padding-top:0.6rem;border-top:1px solid var(--border);}
+.stock-proy-bar{height:5px;border-radius:3px;background:var(--border);overflow:hidden;margin-bottom:0.3rem;}
+.stock-proy-fill{height:100%;border-radius:3px;transition:width 0.5s ease;}
+.stock-dias{font-size:0.72rem;font-weight:700;display:flex;align-items:center;gap:0.3rem;}
+.proy-critico{color:#e74c3c;}.proy-bajo{color:#e8a838;}.proy-ok{color:#27ae60;}.proy-nodata{color:var(--text-dim);}
+.proy-table{width:100%;border-collapse:collapse;font-size:0.8rem;}
+.proy-table th{text-align:left;padding:0.5rem 0.8rem;font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;border-bottom:1px solid var(--border);}
+.proy-table td{padding:0.6rem 0.8rem;border-bottom:1px solid rgba(0,0,0,0.05);vertical-align:middle;}
+.proy-table tr:last-child td{border-bottom:none;}
+.proy-dias-badge{display:inline-flex;align-items:center;gap:0.3rem;border-radius:999px;font-size:0.72rem;font-weight:700;padding:0.2rem 0.65rem;border:1px solid;white-space:nowrap;}
 .stock-controls{display:flex;align-items:center;gap:0.4rem;margin-top:0.8rem;}
 .stock-controls input{width:60px;text-align:center;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:0.3rem;font-family:var(--mono);font-size:0.9rem;outline:none;}
 .stock-controls input:focus{border-color:var(--accent);}
@@ -555,6 +565,7 @@ body.compact .kpi-value{font-size:1.6rem;}
       <section class="tab-content" id="tab-stock">
         <div class="section-header"><h2>Stock</h2><p class="section-desc">Gestioná el inventario. Se descuenta automáticamente al crear pedidos.</p></div>
         <div id="stock-alerta-banner" style="display:none"></div>
+        <div id="stock-proyeccion-section" style="margin-bottom:1.4rem"></div>
         <div class="stock-grid" id="stock-grid"></div>
         <div id="stock-guardar-btn" style="display:flex;justify-content:flex-end;margin-top:0.5rem">
           <button class="btn btn-primary" onclick="guardarStock()"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Guardar Stock</button>
@@ -1305,19 +1316,83 @@ function editarProducto(id){
 }
 
 // ── STOCK ─────────────────────────────────────────────
+function calcularProyeccionStock() {
+  const ahora=new Date(); ahora.setHours(0,0,0,0);
+  const hace30=new Date(ahora); hace30.setDate(ahora.getDate()-30);
+  const iso30=hace30.toISOString().split('T')[0];
+  const consumo30={};
+  PRODUCTOS.forEach(p=>{consumo30[p.id]=0;});
+  pedidos.forEach(p=>{
+    if(!p.fecha||p.fecha<iso30)return;
+    (p.productos||[]).forEach(pr=>{if(consumo30.hasOwnProperty(pr.id))consumo30[pr.id]+=pr.cantidad;});
+  });
+  const proy={};
+  PRODUCTOS.forEach(p=>{
+    const qty=stock[p.id]||0, c30=consumo30[p.id]||0, tasa=c30/30;
+    proy[p.id]={qty,c30,tasa,dias:tasa>0?Math.round(qty/tasa):null};
+  });
+  return proy;
+}
+
+function proyBadgeInfo(dias) {
+  if(dias===null) return {cls:'proy-nodata',label:'Sin datos',color:'var(--text-dim)',pct:0};
+  if(dias<=0)     return {cls:'proy-critico',label:'Agotado',color:'#e74c3c',pct:0};
+  if(dias<=7)     return {cls:'proy-critico',label:'~'+dias+' días',color:'#e74c3c',pct:Math.min(dias/30*100,100)};
+  if(dias<=14)    return {cls:'proy-bajo',   label:'~'+dias+' días',color:'#e8a838',pct:Math.min(dias/60*100,100)};
+  if(dias<=30)    return {cls:'proy-bajo',   label:'~'+dias+' días',color:'#e8a838',pct:Math.min(dias/60*100,100)};
+  return {cls:'proy-ok',label:'~'+dias+' días',color:'#27ae60',pct:100};
+}
+
 function renderStock(){
   const grid=document.getElementById('stock-grid');if(!grid)return;
   const esViewer2=usuarioActual?.rol==='viewer';
   if(document.getElementById('stock-guardar-btn'))
     document.getElementById('stock-guardar-btn').style.display=esViewer2?'none':'flex';
   if(!PRODUCTOS.length){grid.innerHTML='<p style="color:var(--text-dim);font-style:italic">No hay productos.</p>';return;}
+
+  const proy=calcularProyeccionStock();
+
   grid.innerHTML=PRODUCTOS.map(p=>{
-    const qty=stock[p.id]||0,bajo=qty<=10;
+    const qty=stock[p.id]||0, bajo=qty<=10;
     const controls=esViewer2
       ?'<div style="margin-top:0.8rem;font-family:var(--mono);font-size:0.85rem;color:var(--text-muted)">'+qty+' unidades</div>'
       :'<div class="stock-controls"><button class="qty-btn" onclick="ajustarStockCard(\''+p.id+'\',-1)">&#x2212;</button><input type="number" min="0" value="'+qty+'" id="sc-input-'+p.id+'" onchange="stockInputChange(\''+p.id+'\',this.value)"/><button class="qty-btn" onclick="ajustarStockCard(\''+p.id+'\',1)">+</button></div>';
-    return '<div class="stock-card '+(bajo?'stock-bajo':'stock-ok')+'"><div class="stock-card-nombre">'+esc(p.nombre)+'</div><div class="stock-card-cantidad" id="sc-qty-'+p.id+'">'+qty+'</div><div class="stock-card-label">unidades en stock</div>'+controls+'</div>';
+    const info=proyBadgeInfo(proy[p.id]?.dias??null);
+    const proyHtml='<div class="stock-proy">'+
+      '<div class="stock-proy-bar"><div class="stock-proy-fill" style="width:'+info.pct+'%;background:'+info.color+'"></div></div>'+
+      '<div class="stock-dias '+info.cls+'"><span>⏱</span>'+info.label+'<span style="font-weight:400;color:var(--text-dim);margin-left:0.3rem">('+(proy[p.id]?.c30||0)+' u/30d)</span></div>'+
+      '</div>';
+    return '<div class="stock-card '+(bajo?'stock-bajo':'stock-ok')+'"><div class="stock-card-nombre">'+esc(p.nombre)+'</div><div class="stock-card-cantidad" id="sc-qty-'+p.id+'">'+qty+'</div><div class="stock-card-label">unidades en stock</div>'+controls+proyHtml+'</div>';
   }).join('');
+
+  // Tabla de proyección ordenada por urgencia
+  const pSection=document.getElementById('stock-proyeccion-section');
+  if(pSection){
+    const sorted=[...PRODUCTOS].map(p=>({p,info:proy[p.id]})).sort((a,b)=>{
+      const da=a.info.dias===null?99999:a.info.dias;
+      const db=b.info.dias===null?99999:b.info.dias;
+      return da-db;
+    });
+    const hayDatos=sorted.some(x=>x.info.c30>0);
+    if(!hayDatos){pSection.innerHTML='<div class="card" style="padding:1rem;color:var(--text-dim);font-style:italic;font-size:0.82rem">⏱ Sin consumo registrado en los últimos 30 días — la proyección estará disponible cuando haya pedidos en ese período.</div>';return;}
+    pSection.innerHTML='<div class="card" style="margin-bottom:0">'+
+      '<div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:1rem;display:flex;align-items:center;gap:0.5rem">'+
+      '<span style="width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0"></span>Proyección de agotamiento — basada en consumo de los últimos 30 días</div>'+
+      '<div class="table-wrapper"><table class="proy-table">'+
+      '<thead><tr><th>Producto</th><th>Stock actual</th><th>Consumo 30d</th><th>Tasa diaria</th><th>Días estimados</th></tr></thead>'+
+      '<tbody>'+sorted.map(({p,info})=>{
+        const bi=proyBadgeInfo(info.dias);
+        const badge='<span class="proy-dias-badge" style="background:'+bi.color+'18;color:'+bi.color+';border-color:'+bi.color+'44">'+bi.label+'</span>';
+        return '<tr>'+
+          '<td><strong>'+esc(p.nombre)+'</strong></td>'+
+          '<td style="font-family:var(--mono);font-weight:700;color:'+(info.qty<=10?'var(--danger)':'var(--success)')+'">'+info.qty+'</td>'+
+          '<td style="font-family:var(--mono)">'+info.c30+'</td>'+
+          '<td style="font-family:var(--mono);color:var(--text-muted)">'+info.tasa.toFixed(1)+'/día</td>'+
+          '<td>'+badge+'</td>'+
+          '</tr>';
+      }).join('')+'</tbody></table></div></div>';
+  }
+
   const bajos=PRODUCTOS.filter(p=>(stock[p.id]||0)<=10);
   const banner=document.getElementById('stock-alerta-banner');
   if(banner){if(bajos.length){banner.style.display='flex';banner.innerHTML='<div style="font-size:1.3rem;flex-shrink:0">⚠️</div><div><div class="stock-alerta-titulo">'+bajos.length+' producto'+(bajos.length!==1?'s':'')+' con stock bajo</div><div class="stock-alerta-items">'+bajos.map(p=>esc(p.nombre)+': <strong style="color:var(--danger)">'+(stock[p.id]||0)+'</strong>').join(' &nbsp;·&nbsp; ')+'</div></div>';}else{banner.style.display='none';}}
