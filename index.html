@@ -848,7 +848,7 @@ async function agregarProducto() {
   PRODUCTOS.push({id,nombre}); stock[id]=0;
   setSyncStatus('online');
   document.getElementById('np-nombre').value='';
-  construirProductosGrid(); renderCatalogo();
+  construirProductosGrid(); construirImportGrid(); renderCatalogo();
   toast('Producto "'+nombre+'" agregado ✓');
 }
 
@@ -860,7 +860,7 @@ async function eliminarProducto(id) {
   const {error}=await sb.from('productos').delete().eq('id',id);
   if(error){toast('Error: '+error.message,true);setSyncStatus('offline');return;}
   PRODUCTOS.splice(PRODUCTOS.findIndex(x=>x.id===id),1);
-  setSyncStatus('online'); construirProductosGrid(); renderCatalogo();
+  setSyncStatus('online'); construirProductosGrid(); construirImportGrid(); renderCatalogo();
   toast('Producto eliminado');
 }
 
@@ -875,7 +875,7 @@ async function guardarNombreProducto(id) {
   const idx=PRODUCTOS.findIndex(x=>x.id===id); PRODUCTOS[idx].nombre=nuevoNombre;
   await sb.from('pedido_items').update({nombre:nuevoNombre}).eq('producto_id',id);
   pedidos=pedidos.map(pd=>({...pd,productos:(pd.productos||[]).map(pr=>pr.id===id?{...pr,nombre:nuevoNombre}:pr)}));
-  setSyncStatus('online'); construirProductosGrid(); renderCatalogo(); renderPedidos();
+  setSyncStatus('online'); construirProductosGrid(); construirImportGrid(); renderCatalogo(); renderPedidos();
   toast('Producto actualizado ✓');
 }
 
