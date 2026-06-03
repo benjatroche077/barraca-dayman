@@ -519,7 +519,19 @@ body.compact .kpi-value{font-size:1.6rem;}
 
       <!-- ANÁLISIS -->
       <section class="tab-content" id="tab-analisis">
-        <div class="section-header"><h2>Análisis</h2><p class="section-desc">Métricas y estadísticas generales del negocio.</p></div>
+        <div class="section-header"><h2>Análisis</h2><p class="section-desc">Métricas y estadísticas. Filtrá para ver datos específicos.</p></div>
+        <div class="filtros-bar" style="margin-bottom:1.2rem">
+          <select id="af-empresa" onchange="analisisFiltroCambio('empresa')"><option value="">Todas las empresas</option></select>
+          <select id="af-obra" onchange="analisisFiltroCambio('obra')"><option value="">Todas las obras</option></select>
+          <select id="af-producto" onchange="analisisFiltroCambio('')"><option value="">Todos los bloques</option></select>
+          <select id="af-tipo" onchange="analisisFiltroCambio('')">
+            <option value="">Envío y retiro</option>
+            <option value="envio">🚛 Solo envíos</option>
+            <option value="retiro">🏭 Solo retiros</option>
+          </select>
+          <button class="btn btn-ghost" onclick="limpiarAnalisisFiltros()">Limpiar</button>
+          <span id="af-count" class="badge-count" style="display:none"></span>
+        </div>
         <div id="analisis-contenido"></div>
       </section>
 
@@ -1091,7 +1103,7 @@ function cambiarTab(tab) {
   if(tab==='calendario')renderCalendario();
   if(tab==='gestion')renderGestion();
   if(tab==='pedidos'){actualizarSelectClientes();renderPedidos();}
-  if(tab==='analisis')renderAnalisis();
+  if(tab==='analisis'){actualizarAnalisisFiltros();renderAnalisis();}
   if(tab==='catalogo')renderCatalogo();
   if(tab==='stock')renderStock();
   if(tab==='mapa'){renderMapa();setTimeout(()=>{if(mapaInstance)mapaInstance.invalidateSize();},120);}
@@ -1322,44 +1334,129 @@ function verificarAlertaStock(){
 }
 
 // ── ANÁLISIS ──────────────────────────────────────────
+function actualizarAnalisisFiltros(origen) {
+  const empSel=document.getElementById('af-empresa'), obraSel=document.getElementById('af-obra'), prodSel=document.getElementById('af-producto');
+  if(!empSel||!obraSel||!prodSel) return;
+  const empActual=empSel.value, obraActual=obraSel.value, prodActual=prodSel.value;
+  // Empresas
+  const empresas=[...new Set(pedidos.map(p=>p.empresa).filter(Boolean))].sort();
+  empSel.innerHTML='<option value="">Todas las empresas</option>'+empresas.map(e=>'<option value="'+esc(e)+'"'+(e===empActual?' selected':'')+'>'+esc(e)+'</option>').join('');
+  // Obras filtradas por empresa
+  const obras=[...new Set(pedidos.filter(p=>!empActual||p.empresa===empActual).map(p=>p.obra).filter(Boolean))].sort();
+  const obraValida=obras.includes(obraActual)?obraActual:'';
+  obraSel.innerHTML='<option value="">Todas las obras</option>'+obras.map(o=>'<option value="'+esc(o)+'"'+(o===obraValida?' selected':'')+'>'+esc(o)+'</option>').join('');
+  // Productos
+  prodSel.innerHTML='<option value="">Todos los bloques</option>'+PRODUCTOS.map(p=>'<option value="'+esc(p.nombre)+'"'+(p.nombre===prodActual?' selected':'')+'>'+esc(p.nombre)+'</option>').join('');
+}
+
+function analisisFiltroCambio(origen) {
+  if(origen==='empresa') document.getElementById('af-obra').value='';
+  actualizarAnalisisFiltros(origen);
+  renderAnalisis();
+}
+
+function limpiarAnalisisFiltros() {
+  ['af-empresa','af-obra','af-producto','af-tipo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  actualizarAnalisisFiltros();
+  renderAnalisis();
+}
+
 function renderAnalisis(){
   const contenido=document.getElementById('analisis-contenido');
   Object.values(chartInstances).forEach(c=>{try{c.destroy();}catch(e){}});
   chartInstances={};
   if(!pedidos.length){contenido.innerHTML='<div class="empty-analysis">No hay pedidos registrados todavía.</div>';return;}
-  const totalPedidos=pedidos.length, totalObras=new Set(pedidos.map(p=>p.obra)).size;
-  const unidades={};PRODUCTOS.forEach(p=>{unidades[p.nombre]=0;});pedidos.forEach(p=>{(p.productos||[]).forEach(pr=>{unidades[pr.nombre]=(unidades[pr.nombre]||0)+pr.cantidad;});});
+
+  // Filtros
+  const filtEmp=document.getElementById('af-empresa')?.value||'';
+  const filtObra=document.getElementById('af-obra')?.value||'';
+  const filtProd=document.getElementById('af-producto')?.value||'';
+  const filtTipo=document.getElementById('af-tipo')?.value||'';
+  let data=pedidos;
+  if(filtEmp)  data=data.filter(p=>p.empresa===filtEmp);
+  if(filtObra) data=data.filter(p=>p.obra===filtObra);
+  if(filtProd) data=data.filter(p=>(p.productos||[]).some(pr=>pr.nombre===filtProd));
+  if(filtTipo) data=data.filter(p=>(p.tipoEntrega||'envio')===filtTipo);
+  const hayFiltro=filtEmp||filtObra||filtProd||filtTipo;
+  const countEl=document.getElementById('af-count');
+  if(countEl){countEl.style.display=hayFiltro?'inline-flex':'none';if(hayFiltro)countEl.textContent=data.length+' resultado'+(data.length!==1?'s':'');}
+  if(!data.length){contenido.innerHTML='<div class="empty-analysis">No hay pedidos que coincidan con los filtros.</div>';return;}
+
+  // Cálculos
+  const totalPedidos=data.length;
+  const totalObras=new Set(data.map(p=>p.obra)).size;
+  const totalEmpresas=new Set(data.map(p=>p.empresa)).size;
+  const entregados=data.filter(p=>p.estado==='entregado').length;
+  const pendientesN=data.filter(p=>(p.estado||'pendiente')==='pendiente').length;
+  const enCaminoN=data.filter(p=>p.estado==='camino').length;
+  const pctEntregados=totalPedidos?Math.round(entregados/totalPedidos*100):0;
+  const envios=data.filter(p=>(p.tipoEntrega||'envio')==='envio').length;
+  const retiros=data.filter(p=>p.tipoEntrega==='retiro').length;
+
+  const unidades={};PRODUCTOS.forEach(p=>{unidades[p.nombre]=0;});
+  data.forEach(p=>{(p.productos||[]).forEach(pr=>{unidades[pr.nombre]=(unidades[pr.nombre]||0)+pr.cantidad;});});
   const totalUnidades=Object.values(unidades).reduce((a,b)=>a+b,0);
   const prodRanking=Object.entries(unidades).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
-  const pedPorObra={};pedidos.forEach(p=>{pedPorObra[p.obra]=(pedPorObra[p.obra]||0)+1;});
+
+  const pedPorEmpresa={};data.forEach(p=>{pedPorEmpresa[p.empresa]=(pedPorEmpresa[p.empresa]||0)+1;});
+  const rankingEmpresas=Object.entries(pedPorEmpresa).sort((a,b)=>b[1]-a[1]).slice(0,7);
+  const pedPorObra={};data.forEach(p=>{pedPorObra[p.obra]=(pedPorObra[p.obra]||0)+1;});
   const rankingObras=Object.entries(pedPorObra).sort((a,b)=>b[1]-a[1]).slice(0,7);
-  const pedPorDia=[0,0,0,0,0,0,0];pedidos.forEach(p=>{if(p.fecha){const[y,m,d]=p.fecha.split('-').map(Number);pedPorDia[new Date(y,m-1,d).getDay()]++;}});
+  const uPorEmpresa={};data.forEach(p=>{const u=(p.productos||[]).reduce((s,pr)=>s+pr.cantidad,0);uPorEmpresa[p.empresa]=(uPorEmpresa[p.empresa]||0)+u;});
+  const rankingEmpU=Object.entries(uPorEmpresa).sort((a,b)=>b[1]-a[1]).slice(0,7);
+
+  const pedPorDia=[0,0,0,0,0,0,0];data.forEach(p=>{if(p.fecha){const[y,m,d]=p.fecha.split('-').map(Number);pedPorDia[new Date(y,m-1,d).getDay()]++;}});
   const diasData=[1,2,3,4,5,6,0].map(i=>pedPorDia[i]);
-  const ahora=new Date(),mesesLabels=[],mesesData=[];
-  for(let i=5;i>=0;i--){const d=new Date(ahora.getFullYear(),ahora.getMonth()-i,1);const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');mesesLabels.push(d.toLocaleDateString('es-UY',{month:'short',year:'2-digit'}));mesesData.push(pedidos.filter(p=>p.fecha&&p.fecha.startsWith(key)).length);}
+  const ahora=new Date(),mesesLabels=[],mesesData=[],unidadesMes=[];
+  for(let i=5;i>=0;i--){const d=new Date(ahora.getFullYear(),ahora.getMonth()-i,1);const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');mesesLabels.push(d.toLocaleDateString('es-UY',{month:'short',year:'2-digit'}));const mp=data.filter(p=>p.fecha&&p.fecha.startsWith(key));mesesData.push(mp.length);unidadesMes.push(mp.reduce((s,p)=>s+(p.productos||[]).reduce((ss,pr)=>ss+pr.cantidad,0),0));}
+
   contenido.innerHTML=
-    '<div class="kpi-grid">'+
-      '<div class="kpi-card k-accent"><div class="kpi-label">Total Pedidos</div><div class="kpi-value">'+totalPedidos+'</div><div class="kpi-sub">registrados en el sistema</div></div>'+
-      '<div class="kpi-card k-success"><div class="kpi-label">Obras Activas</div><div class="kpi-value">'+totalObras+'</div><div class="kpi-sub">con al menos un pedido</div></div>'+
-      '<div class="kpi-card k-info"><div class="kpi-label">Unidades Despachadas</div><div class="kpi-value">'+totalUnidades+'</div><div class="kpi-sub">pallets y chapas en total</div></div>'+
-      '<div class="kpi-card k-danger"><div class="kpi-label">Producto Estrella</div><div class="kpi-value" style="font-size:1rem;margin-top:0.3rem">'+(prodRanking.length?prodRanking[0][0].replace('Pallet ',''):'&#x2014;')+'</div><div class="kpi-sub">'+(prodRanking.length?prodRanking[0][1]+' unidades':'sin datos')+'</div></div>'+
+    '<div class="kpi-grid" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr))">'+
+      '<div class="kpi-card k-accent"><div class="kpi-label">Pedidos</div><div class="kpi-value">'+totalPedidos+'</div><div class="kpi-sub">'+totalEmpresas+' empresa'+( totalEmpresas!==1?'s':'')+' · '+totalObras+' obra'+(totalObras!==1?'s':'')+'</div></div>'+
+      '<div class="kpi-card k-info"><div class="kpi-label">Unidades</div><div class="kpi-value">'+totalUnidades+'</div><div class="kpi-sub">total despachado</div></div>'+
+      '<div class="kpi-card k-success"><div class="kpi-label">Entregados</div><div class="kpi-value">'+pctEntregados+'%</div><div class="kpi-sub">'+entregados+' de '+totalPedidos+'</div></div>'+
+      '<div class="kpi-card k-danger"><div class="kpi-label">Pendientes</div><div class="kpi-value">'+pendientesN+'</div><div class="kpi-sub">'+enCaminoN+' en camino</div></div>'+
+      '<div class="kpi-card" style="border-top:2px solid #27ae60"><div class="kpi-label">Envíos</div><div class="kpi-value">'+envios+'</div><div class="kpi-sub">'+(totalPedidos?Math.round(envios/totalPedidos*100):0)+'% del total</div></div>'+
+      '<div class="kpi-card" style="border-top:2px solid #2980b9"><div class="kpi-label">Retiros</div><div class="kpi-value">'+retiros+'</div><div class="kpi-sub">'+(totalPedidos?Math.round(retiros/totalPedidos*100):0)+'% del total</div></div>'+
     '</div>'+
     '<div class="charts-grid">'+
-      '<div class="chart-card"><div class="chart-title"><span class="chart-title-dot" style="background:var(--accent)"></span>Pedidos por mes</div><div class="chart-wrap"><canvas id="chart-meses"></canvas></div></div>'+
-      '<div class="chart-card"><div class="chart-title"><span class="chart-title-dot" style="background:var(--info)"></span>Pedidos por día de la semana</div><div class="chart-wrap"><canvas id="chart-dias"></canvas></div></div>'+
+      '<div class="chart-card"><div class="chart-title"><span class="chart-title-dot" style="background:var(--accent)"></span>Pedidos y unidades por mes</div><div class="chart-wrap"><canvas id="chart-meses"></canvas></div></div>'+
+      '<div class="chart-card"><div class="chart-title"><span class="chart-title-dot" style="background:var(--info)"></span>Estado de pedidos</div><div class="chart-wrap" style="display:flex;align-items:center;justify-content:center"><canvas id="chart-estados" style="max-height:200px"></canvas></div></div>'+
     '</div>'+
     '<div class="charts-grid">'+
-      '<div class="chart-card"><div class="chart-title"><span class="chart-title-dot" style="background:var(--success)"></span>Productos más vendidos</div><div class="chart-wrap tall"><canvas id="chart-productos"></canvas></div></div>'+
-      '<div class="chart-card"><div class="chart-title"><span class="chart-title-dot" style="background:#9b6fff"></span>Obras que más compran</div><div style="margin-top:0.5rem"><div class="ranking-list" id="ranking-obras"></div></div></div>'+
+      '<div class="chart-card"><div class="chart-title"><span class="chart-title-dot" style="background:var(--success)"></span>Bloques más pedidos (unidades)</div><div class="chart-wrap tall"><canvas id="chart-productos"></canvas></div></div>'+
+      '<div class="chart-card"><div class="chart-title"><span class="chart-title-dot" style="background:#e8a838"></span>Envío vs Retiro</div><div class="chart-wrap" style="display:flex;align-items:center;justify-content:center"><canvas id="chart-tipo" style="max-height:200px"></canvas></div></div>'+
+    '</div>'+
+    '<div class="charts-grid">'+
+      '<div class="chart-card"><div class="chart-title"><span class="chart-title-dot" style="background:#9b6fff"></span>Top empresas por pedidos</div><div class="chart-wrap"><canvas id="chart-empresas"></canvas></div></div>'+
+      '<div class="chart-card"><div class="chart-title"><span class="chart-title-dot" style="background:var(--info)"></span>Pedidos por día de semana</div><div class="chart-wrap"><canvas id="chart-dias"></canvas></div></div>'+
+    '</div>'+
+    '<div class="charts-grid">'+
+      '<div class="chart-card"><div class="chart-title"><span class="chart-title-dot" style="background:var(--accent)"></span>Obras que más compran</div><div style="margin-top:0.5rem"><div class="ranking-list" id="ranking-obras"></div></div></div>'+
+      '<div class="chart-card"><div class="chart-title"><span class="chart-title-dot" style="background:#27ae60"></span>Unidades por empresa</div><div style="margin-top:0.5rem"><div class="ranking-list" id="ranking-emp-u"></div></div></div>'+
     '</div>';
-  const fc='#7a8494',gc='rgba(220,224,230,0.7)';
+
+  const fc='#64748b',gc='rgba(220,224,230,0.9)';
   Chart.defaults.color=fc;Chart.defaults.font.family="'Sora',sans-serif";
-  chartInstances['meses']=new Chart(document.getElementById('chart-meses'),{type:'bar',data:{labels:mesesLabels,datasets:[{label:'Pedidos',data:mesesData,backgroundColor:'rgba(192,57,43,0.25)',borderColor:'#c0392b',borderWidth:2,borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:gc},ticks:{color:fc}},y:{grid:{color:gc},ticks:{color:fc,stepSize:1},beginAtZero:true}}}});
-  chartInstances['dias']=new Chart(document.getElementById('chart-dias'),{type:'bar',data:{labels:['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'],datasets:[{label:'Pedidos',data:diasData,backgroundColor:diasData.map(v=>v===Math.max(...diasData)?'rgba(41,128,185,0.7)':'rgba(41,128,185,0.25)'),borderColor:'#4a90d9',borderWidth:2,borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:gc},ticks:{color:fc}},y:{grid:{color:gc},ticks:{color:fc,stepSize:1},beginAtZero:true}}}});
-  const pL=prodRanking.map(([n])=>n.replace('Pallet ','')),pD=prodRanking.map(([,v])=>v);
+
+  chartInstances['meses']=new Chart(document.getElementById('chart-meses'),{type:'bar',data:{labels:mesesLabels,datasets:[{type:'bar',label:'Pedidos',data:mesesData,backgroundColor:'rgba(192,57,43,0.25)',borderColor:'#c0392b',borderWidth:2,borderRadius:5,yAxisID:'y'},{type:'line',label:'Unidades',data:unidadesMes,borderColor:'#27ae60',backgroundColor:'rgba(39,174,96,0.08)',borderWidth:2,tension:0.4,pointRadius:4,fill:true,yAxisID:'y1'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:11},boxWidth:12}}},scales:{x:{grid:{color:gc},ticks:{color:fc}},y:{grid:{color:gc},ticks:{color:fc,stepSize:1},beginAtZero:true,position:'left'},y1:{grid:{display:false},ticks:{color:'#27ae60'},beginAtZero:true,position:'right'}}}});
+
+  chartInstances['estados']=new Chart(document.getElementById('chart-estados'),{type:'doughnut',data:{labels:['Pendiente','En camino','Entregado'],datasets:[{data:[pendientesN,enCaminoN,entregados],backgroundColor:['rgba(100,116,139,0.8)','rgba(41,128,185,0.8)','rgba(39,174,96,0.8)'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12}}}}});
+
+  const pL=prodRanking.map(([n])=>n),pD=prodRanking.map(([,v])=>v);
   chartInstances['productos']=new Chart(document.getElementById('chart-productos'),{type:'bar',data:{labels:pL,datasets:[{label:'Unidades',data:pD,backgroundColor:COLORES.slice(0,pL.length),borderRadius:5}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:gc},ticks:{color:fc,stepSize:1},beginAtZero:true},y:{grid:{color:'transparent'},ticks:{color:fc}}}}});
+
+  chartInstances['tipo']=new Chart(document.getElementById('chart-tipo'),{type:'doughnut',data:{labels:['Envío','Retiro'],datasets:[{data:[envios,retiros],backgroundColor:['rgba(39,174,96,0.8)','rgba(41,128,185,0.8)'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12}}}}});
+
+  const eL=rankingEmpresas.map(([e])=>e),eD=rankingEmpresas.map(([,v])=>v);
+  chartInstances['empresas']=new Chart(document.getElementById('chart-empresas'),{type:'bar',data:{labels:eL,datasets:[{label:'Pedidos',data:eD,backgroundColor:COLORES.slice(0,eL.length),borderRadius:5}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:gc},ticks:{color:fc,stepSize:1},beginAtZero:true},y:{grid:{color:'transparent'},ticks:{color:fc}}}}});
+
+  chartInstances['dias']=new Chart(document.getElementById('chart-dias'),{type:'bar',data:{labels:['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'],datasets:[{label:'Pedidos',data:diasData,backgroundColor:diasData.map(v=>v===Math.max(...diasData)?'rgba(41,128,185,0.7)':'rgba(41,128,185,0.25)'),borderColor:'#2980b9',borderWidth:2,borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:gc},ticks:{color:fc}},y:{grid:{color:gc},ticks:{color:fc,stepSize:1},beginAtZero:true}}}});
+
   const maxO=rankingObras.length?rankingObras[0][1]:1;
   document.getElementById('ranking-obras').innerHTML=rankingObras.map(([obra,cnt],i)=>'<div class="ranking-row"><div class="ranking-pos">'+(i+1)+'</div><div class="ranking-bar-wrap"><div class="ranking-label">'+esc(obra)+'</div><div class="ranking-bar-bg"><div class="ranking-bar-fill" style="width:'+Math.round(cnt/maxO*100)+'%;background:'+COLORES[i%COLORES.length]+'"></div></div></div><div class="ranking-val">'+cnt+'</div></div>').join('');
+  const maxEU=rankingEmpU.length?rankingEmpU[0][1]:1;
+  document.getElementById('ranking-emp-u').innerHTML=rankingEmpU.map(([emp,cnt],i)=>'<div class="ranking-row"><div class="ranking-pos">'+(i+1)+'</div><div class="ranking-bar-wrap"><div class="ranking-label">'+esc(emp)+'</div><div class="ranking-bar-bg"><div class="ranking-bar-fill" style="width:'+Math.round(cnt/maxEU*100)+'%;background:'+COLORES[i%COLORES.length]+'"></div></div></div><div class="ranking-val">'+cnt+'</div></div>').join('');
 }
 
 // ── EXPORTAR ──────────────────────────────────────────
