@@ -1467,8 +1467,7 @@ function renderStock(){
       '<div class="stock-proy-bar"><div class="stock-proy-fill" style="width:'+info.pct+'%;background:'+info.color+'"></div></div>'+
       '<div class="stock-dias '+info.cls+'"><span>⏱</span>'+info.label+'<span style="font-weight:400;color:var(--text-dim);margin-left:0.3rem">('+(proy[p.id]?.c30||0)+' u/30d)</span></div>'+
       '</div>';
-    const movBtn='<button class="btn btn-ghost" style="width:100%;margin-top:0.5rem;font-size:0.74rem;padding:0.3rem" onclick="abrirMovimientos(\''+p.id+'\',\''+esc(p.nombre)+'\')" >📋 Ver movimientos</button>';
-    const movBtn='<button class="btn btn-ghost" style="width:100%;margin-top:0.5rem;font-size:0.74rem;padding:0.3rem 0" onclick="abrirMovimientos(\''+(p.id)+'\',\''+p.nombre.replace(/\'/g,\'\\\'')+'\')">📋 Ver movimientos</button>';
+    const movBtn='<button class="btn btn-ghost" style="width:100%;margin-top:0.5rem;font-size:0.74rem;padding:0.3rem" onclick="abrirMovimientos(\''+p.id+'\',\''+esc(p.nombre)+'\')">📋 Ver movimientos</button>';
     return '<div class="stock-card '+(bajo?'stock-bajo':'stock-ok')+'"><div class="stock-card-nombre">'+esc(p.nombre)+'</div><div class="stock-card-cantidad" id="sc-qty-'+p.id+'">'+qty+'</div><div class="stock-card-label">unidades en stock</div>'+controls+proyHtml+movBtn+'</div>';
   }).join('');
 
