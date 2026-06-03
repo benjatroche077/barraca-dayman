@@ -214,6 +214,20 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .proy-table td{padding:0.6rem 0.8rem;border-bottom:1px solid rgba(0,0,0,0.05);vertical-align:middle;}
 .proy-table tr:last-child td{border-bottom:none;}
 .proy-dias-badge{display:inline-flex;align-items:center;gap:0.3rem;border-radius:999px;font-size:0.72rem;font-weight:700;padding:0.2rem 0.65rem;border:1px solid;white-space:nowrap;}
+/* ── HEATMAP ─────────────────────────────────────────────── */
+.heatmap-wrap{overflow-x:auto;padding-bottom:0.4rem;}
+.heatmap-outer{display:flex;gap:4px;}
+.heatmap-day-labels{display:grid;grid-template-rows:repeat(7,13px);gap:2px;padding-top:1px;}
+.heatmap-day-labels span{font-size:0.6rem;color:var(--text-dim);line-height:13px;width:10px;text-align:right;}
+.heatmap-grid{display:inline-grid;grid-template-rows:repeat(7,13px);grid-auto-flow:column;gap:2px;}
+.heatmap-cell{width:13px;height:13px;border-radius:2px;cursor:default;transition:opacity 0.1s;}
+.heatmap-cell:hover{opacity:0.75;}
+.heatmap-legend{display:flex;align-items:center;gap:0.4rem;margin-top:0.7rem;font-size:0.68rem;color:var(--text-muted);}
+.heatmap-month-labels{display:flex;margin-left:14px;margin-bottom:3px;font-size:0.62rem;color:var(--text-dim);}
+/* ── DELTA COMPARACIÓN ───────────────────────────────────── */
+.kpi-delta-up{font-size:0.68rem;font-weight:700;color:#27ae60;margin-left:0.35rem;}
+.kpi-delta-dn{font-size:0.68rem;font-weight:700;color:#e74c3c;margin-left:0.35rem;}
+.kpi-delta-eq{font-size:0.68rem;font-weight:600;color:var(--text-dim);margin-left:0.35rem;}
 .stock-controls{display:flex;align-items:center;gap:0.4rem;margin-top:0.8rem;}
 .stock-controls input{width:60px;text-align:center;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:0.3rem;font-family:var(--mono);font-size:0.9rem;outline:none;}
 .stock-controls input:focus{border-color:var(--accent);}
@@ -462,6 +476,8 @@ body.compact .kpi-value{font-size:1.6rem;}
             <div class="form-group"><label>Orden de Compra <span class="required">*</span></label><input type="text" id="p-oc" placeholder="Ej: OC-2024-0045"/></div>
             <div class="form-group full-width"><label>Tipo de Entrega <span class="required">*</span></label><select id="p-tipo-entrega" onchange="toggleTransportista()"><option value="envio">🚛 Envío a obra</option><option value="retiro">🏭 Retiro en centro logístico (a cargo del comprador)</option></select></div>
             <div class="form-group full-width" id="transportista-group"><label>Transportista</label><input type="text" id="p-transportista" placeholder="Ej: Juan Rodríguez / Camión BD-1234"/></div>
+            <div class="form-group"><label>Hora desde</label><input type="time" id="p-hora-inicio"/></div>
+            <div class="form-group"><label>Hora hasta</label><input type="time" id="p-hora-fin"/></div>
           </div>
           <span class="productos-section-label">Productos <span class="required">*</span></span>
           <div class="productos-grid" id="productos-grid"></div>
@@ -538,6 +554,12 @@ body.compact .kpi-value{font-size:1.6rem;}
             <option value="">Envío y retiro</option>
             <option value="envio">🚛 Solo envíos</option>
             <option value="retiro">🏭 Solo retiros</option>
+          </select>
+          <select id="af-comparar" onchange="renderAnalisis()" style="min-width:200px">
+            <option value="">Sin comparación</option>
+            <option value="mes">vs mes anterior</option>
+            <option value="trimestre">vs trimestre anterior</option>
+            <option value="año">vs año anterior</option>
           </select>
           <button class="btn btn-ghost" onclick="limpiarAnalisisFiltros()">Limpiar</button>
           <span id="af-count" class="badge-count" style="display:none"></span>
@@ -882,6 +904,7 @@ async function cargarDatos() {
       fecha:p.fecha, oc:p.oc, transportista:p.transportista,
       comentarios:p.comentarios, estado:p.estado||'pendiente', remito:p.remito,
       tipoEntrega:p.tipo_entrega||'envio',
+      horaInicio:p.hora_inicio||null, horaFin:p.hora_fin||null,
       productos:(p.pedido_items||[]).map(it=>({id:it.producto_id,nombre:it.nombre,cantidad:it.cantidad}))
     }));
     setSyncStatus('online');
@@ -958,16 +981,17 @@ async function guardarPedido() {
   if(sinStock.length){toast('Stock insuficiente: '+sinStock.map(pr=>pr.nombre+' (hay '+(stock[pr.id]||0)+')').join(', '),true);return;}
   setSyncStatus('syncing');
   const tipoEntrega=val('p-tipo-entrega')||'envio';
-  const {data:pd,error:pe}=await sb.from('pedidos').insert({cliente_id:c.id,empresa:c.empresa,obra:c.obra,fecha,oc,transportista:tipoEntrega==='retiro'?null:val('p-transportista'),comentarios:val('p-comentarios'),estado:'pendiente',tipo_entrega:tipoEntrega}).select().single();
+  const horaInicio=val('p-hora-inicio')||null, horaFin=val('p-hora-fin')||null;
+  const {data:pd,error:pe}=await sb.from('pedidos').insert({cliente_id:c.id,empresa:c.empresa,obra:c.obra,fecha,oc,transportista:tipoEntrega==='retiro'?null:val('p-transportista'),comentarios:val('p-comentarios'),estado:'pendiente',tipo_entrega:tipoEntrega,hora_inicio:horaInicio,hora_fin:horaFin}).select().single();
   if(pe){toast('Error: '+pe.message,true);setSyncStatus('offline');return;}
   await sb.from('pedido_items').insert(sel.map(pr=>({pedido_id:pd.id,producto_id:pr.id,nombre:pr.nombre,cantidad:pr.cantidad})));
   for(const pr of sel){
     stock[pr.id]=(stock[pr.id]||0)-pr.cantidad;
     await sb.from('stock').upsert({producto_id:pr.id,cantidad:stock[pr.id],updated_at:new Date().toISOString()});
   }
-  pedidos.push({id:pd.id,clienteId:c.id,empresa:c.empresa,obra:c.obra,fecha,oc,transportista:tipoEntrega==='retiro'?null:val('p-transportista'),comentarios:val('p-comentarios'),estado:'pendiente',tipoEntrega,productos:sel});
+  pedidos.push({id:pd.id,clienteId:c.id,empresa:c.empresa,obra:c.obra,fecha,oc,transportista:tipoEntrega==='retiro'?null:val('p-transportista'),comentarios:val('p-comentarios'),estado:'pendiente',tipoEntrega,horaInicio,horaFin,productos:sel});
   setSyncStatus('online');
-  limpiar(['p-oc','p-comentarios','p-transportista']);
+  limpiar(['p-oc','p-comentarios','p-transportista','p-hora-inicio','p-hora-fin']);
   document.getElementById('p-cliente').value=''; document.getElementById('p-fecha').value='';
   document.getElementById('p-tipo-entrega').value='envio'; toggleTransportista();
   resetProductos(); renderPedidos(); renderCalendario(); verificarAlertaStock();
@@ -1210,7 +1234,7 @@ function renderPedidos(){
       '<td>'+estadoBadge(estado)+remitoThumb+(btnEstado?'<div style="margin-top:0.4rem">'+btnEstado+'</div>':'')+'</td>'+
       '<td><strong>'+esc(p.obra)+'</strong></td>'+
       '<td>'+esc(p.empresa)+'</td>'+
-      '<td style="font-family:var(--mono);color:var(--accent)">'+formatFecha(p.fecha)+'</td>'+
+      '<td style="font-family:var(--mono);color:var(--accent)">'+formatFecha(p.fecha)+(p.horaInicio?'<br><span style="font-size:0.7rem;color:var(--text-muted)">⏰ '+p.horaInicio+(p.horaFin?' – '+p.horaFin:'')+'</span>':'')+'</td>'+
       '<td style="font-family:var(--mono)">'+esc(p.oc)+'</td>'+
       transTd+
       '<td><div class="productos-cell">'+prods+'</div></td>'+
@@ -1292,7 +1316,7 @@ function renderCalendario(){
     col.innerHTML='<div class="dia-header"><div class="dia-nombre">'+dias[i]+'</div><div class="dia-numero">'+d.getDate()+'</div></div>'+
       '<div class="dia-pedidos">'+(pp.length===0
         ?'<span style="font-size:0.68rem;color:var(--text-dim);text-align:center;display:block;padding:0.5rem">Sin pedidos</span>'
-        :pp.map(p=>{const ec={pendiente:'#7a8494',camino:'#4a90d9',entregado:'#48b87a'}[p.estado||'pendiente'];return '<div class="pedido-chip" style="border-left:3px solid '+ec+'"><span class="pc-obra">'+esc(p.obra)+'</span><span class="pc-oc">'+esc(p.oc)+'</span></div>';}).join('')
+        :pp.map(p=>{const ec={pendiente:'#7a8494',camino:'#4a90d9',entregado:'#48b87a'}[p.estado||'pendiente'];const horaStr=p.horaInicio?(p.horaInicio+(p.horaFin?' – '+p.horaFin:'')):'';return '<div class="pedido-chip" style="border-left:3px solid '+ec+'"><span class="pc-obra">'+esc(p.obra)+'</span><span class="pc-oc">'+esc(p.oc)+(horaStr?' · ⏰'+horaStr:'')+'</span></div>';}).join('')
       )+'</div>';
     grid.appendChild(col);
   }
@@ -1532,6 +1556,102 @@ function renderAnalisis(){
   document.getElementById('ranking-obras').innerHTML=rankingObras.map(([obra,cnt],i)=>'<div class="ranking-row"><div class="ranking-pos">'+(i+1)+'</div><div class="ranking-bar-wrap"><div class="ranking-label">'+esc(obra)+'</div><div class="ranking-bar-bg"><div class="ranking-bar-fill" style="width:'+Math.round(cnt/maxO*100)+'%;background:'+COLORES[i%COLORES.length]+'"></div></div></div><div class="ranking-val">'+cnt+'</div></div>').join('');
   const maxEU=rankingEmpU.length?rankingEmpU[0][1]:1;
   document.getElementById('ranking-emp-u').innerHTML=rankingEmpU.map(([emp,cnt],i)=>'<div class="ranking-row"><div class="ranking-pos">'+(i+1)+'</div><div class="ranking-bar-wrap"><div class="ranking-label">'+esc(emp)+'</div><div class="ranking-bar-bg"><div class="ranking-bar-fill" style="width:'+Math.round(cnt/maxEU*100)+'%;background:'+COLORES[i%COLORES.length]+'"></div></div></div><div class="ranking-val">'+cnt+'</div></div>').join('');
+
+  // ── L: COMPARACIÓN DE PERÍODOS ──────────────────────────
+  const comparar=document.getElementById('af-comparar')?.value||'';
+  let dataComp=[];
+  if(comparar){
+    const ahDt=new Date();
+    if(comparar==='mes'){
+      const pm=new Date(ahDt.getFullYear(),ahDt.getMonth()-1,1);
+      const pmKey=pm.getFullYear()+'-'+String(pm.getMonth()+1).padStart(2,'0');
+      dataComp=pedidos.filter(p=>p.fecha&&p.fecha.startsWith(pmKey));
+    } else if(comparar==='año'){
+      const añoAnt=ahDt.getFullYear()-1;
+      dataComp=pedidos.filter(p=>p.fecha&&p.fecha.startsWith(String(añoAnt)));
+    } else if(comparar==='trimestre'){
+      const trimAct=Math.floor(ahDt.getMonth()/3);
+      const ptS=new Date(ahDt.getFullYear(),(trimAct-1)*3,1);
+      const ptE=new Date(ahDt.getFullYear(),trimAct*3,0);
+      dataComp=pedidos.filter(p=>{if(!p.fecha)return false;const[y,m,d]=p.fecha.split('-').map(Number);const fd=new Date(y,m-1,d);return fd>=ptS&&fd<=ptE;});
+    }
+    if(filtEmp) dataComp=dataComp.filter(p=>p.empresa===filtEmp);
+    if(filtObra) dataComp=dataComp.filter(p=>p.obra===filtObra);
+    if(filtProd) dataComp=dataComp.filter(p=>(p.productos||[]).some(pr=>pr.nombre===filtProd));
+    if(filtTipo) dataComp=dataComp.filter(p=>(p.tipoEntrega||'envio')===filtTipo);
+  }
+  function kpiDelta(curr,prev){
+    if(!comparar||!prev)return '';
+    const pct=Math.round((curr-prev)/prev*100);
+    if(pct===0)return '<span class="kpi-delta-eq">= igual</span>';
+    return pct>0?'<span class="kpi-delta-up">↑'+pct+'%</span>':'<span class="kpi-delta-dn">↓'+Math.abs(pct)+'%</span>';
+  }
+  const prevPed=dataComp.length;
+  const prevU=dataComp.reduce((s,p)=>s+(p.productos||[]).reduce((ss,pr)=>ss+pr.cantidad,0),0);
+  const prevEnt=dataComp.filter(p=>p.estado==='entregado').length;
+  const prevEnv=dataComp.filter(p=>(p.tipoEntrega||'envio')==='envio').length;
+  const prevRet=dataComp.filter(p=>p.tipoEntrega==='retiro').length;
+  const labelComp=comparar==='mes'?'mes ant.':comparar==='año'?'año ant.':'trim. ant.';
+
+  // Patch KPIs with deltas (re-render the kpi-grid)
+  const kpiGrid=document.querySelector('#analisis-contenido .kpi-grid');
+  if(kpiGrid&&comparar){
+    kpiGrid.innerHTML=
+      '<div class="kpi-card k-accent"><div class="kpi-label">Pedidos</div><div class="kpi-value">'+totalPedidos+kpiDelta(totalPedidos,prevPed)+'</div><div class="kpi-sub">'+totalEmpresas+' empresa'+(totalEmpresas!==1?'s':'')+' · '+totalObras+' obra'+(totalObras!==1?'s':'')+'<br><span style="color:var(--text-dim);font-size:0.68rem">'+labelComp+': '+prevPed+'</span></div></div>'+
+      '<div class="kpi-card k-info"><div class="kpi-label">Unidades</div><div class="kpi-value">'+totalUnidades+kpiDelta(totalUnidades,prevU)+'</div><div class="kpi-sub">total despachado<br><span style="color:var(--text-dim);font-size:0.68rem">'+labelComp+': '+prevU+'</span></div></div>'+
+      '<div class="kpi-card k-success"><div class="kpi-label">Entregados</div><div class="kpi-value">'+pctEntregados+'%'+kpiDelta(entregados,prevEnt)+'</div><div class="kpi-sub">'+entregados+' de '+totalPedidos+'<br><span style="color:var(--text-dim);font-size:0.68rem">'+labelComp+': '+prevEnt+'</span></div></div>'+
+      '<div class="kpi-card k-danger"><div class="kpi-label">Pendientes</div><div class="kpi-value">'+pendientesN+'</div><div class="kpi-sub">'+enCaminoN+' en camino</div></div>'+
+      '<div class="kpi-card" style="border-top:2px solid #27ae60"><div class="kpi-label">Envíos</div><div class="kpi-value">'+envios+kpiDelta(envios,prevEnv)+'</div><div class="kpi-sub">'+(totalPedidos?Math.round(envios/totalPedidos*100):0)+'% del total<br><span style="color:var(--text-dim);font-size:0.68rem">'+labelComp+': '+prevEnv+'</span></div></div>'+
+      '<div class="kpi-card" style="border-top:2px solid #2980b9"><div class="kpi-label">Retiros</div><div class="kpi-value">'+retiros+kpiDelta(retiros,prevRet)+'</div><div class="kpi-sub">'+(totalPedidos?Math.round(retiros/totalPedidos*100):0)+'% del total<br><span style="color:var(--text-dim);font-size:0.68rem">'+labelComp+': '+prevRet+'</span></div></div>';
+  }
+
+  // ── M: TICKET PROMEDIO POR OBRA ──────────────────────────
+  const ticketPorObra={};
+  data.forEach(p=>{if(!ticketPorObra[p.obra])ticketPorObra[p.obra]={pedidos:0,unidades:0};ticketPorObra[p.obra].pedidos++;ticketPorObra[p.obra].unidades+=(p.productos||[]).reduce((s,pr)=>s+pr.cantidad,0);});
+  const ticketRanking=Object.entries(ticketPorObra).map(([obra,d])=>({obra,...d,promedio:d.pedidos?Math.round(d.unidades/d.pedidos):0})).sort((a,b)=>b.promedio-a.promedio).slice(0,8);
+  const contenidoEl=document.getElementById('analisis-contenido');
+  contenidoEl.insertAdjacentHTML('beforeend',
+    '<div class="charts-grid" style="margin-top:0">'+
+      '<div class="chart-card"><div class="chart-title"><span class="chart-title-dot" style="background:#9b6fff"></span>Ticket promedio por obra (unidades/pedido)</div>'+
+      '<div style="margin-top:0.5rem"><div class="ranking-list" id="ranking-ticket">'+
+      ticketRanking.map(({obra,pedidos:cnt,promedio},i)=>'<div class="ranking-row"><div class="ranking-pos">'+(i+1)+'</div><div class="ranking-bar-wrap"><div class="ranking-label">'+esc(obra)+'</div><div class="ranking-bar-bg"><div class="ranking-bar-fill" style="width:'+Math.round(promedio/(ticketRanking[0]?.promedio||1)*100)+'%;background:'+COLORES[i%COLORES.length]+'"></div></div></div><div style="font-family:var(--mono);font-size:0.75rem;color:var(--text-muted);text-align:right;min-width:60px"><strong style="color:var(--text)">'+promedio+'</strong> u/ped<br><span style="font-size:0.65rem">'+cnt+' pedido'+(cnt!==1?'s':'')+'</span></div></div>').join('')+
+      '</div></div></div>'+
+    '</div>');
+
+  // ── N: MAPA DE CALOR ─────────────────────────────────────
+  const hoy52=new Date(); hoy52.setHours(0,0,0,0);
+  const startD=new Date(hoy52); startD.setDate(hoy52.getDate()-364);
+  const dow52=startD.getDay(); startD.setDate(startD.getDate()-(dow52===0?6:dow52-1));
+  const cntByDate={};
+  data.forEach(p=>{if(p.fecha)cntByDate[p.fecha]=(cntByDate[p.fecha]||0)+1;});
+  const maxCnt=Math.max(...Object.values(cntByDate),1);
+  const getHeatColor=(cnt)=>{if(cnt===0)return'var(--border)';const lv=Math.min(Math.ceil(cnt/maxCnt*4),4);const ops=[0.18,0.4,0.65,0.9];return'rgba(192,57,43,'+ops[lv-1]+')';};
+  const cells=[];const cur=new Date(startD);
+  const monthPos=[];let lastMonth=-1;let colIdx=0;
+  while(cur<=hoy52){
+    const iso=cur.toISOString().split('T')[0];
+    const m=cur.getMonth();
+    if(m!==lastMonth){monthPos.push({col:colIdx,label:cur.toLocaleDateString('es-UY',{month:'short'})});lastMonth=m;}
+    cells.push({iso,cnt:cntByDate[iso]||0});
+    if((cells.length)%7===0)colIdx++;
+    cur.setDate(cur.getDate()+1);
+  }
+  while(cells.length%7!==0)cells.push(null);
+  const totalCols=cells.length/7;
+  const monthLabels='<div class="heatmap-month-labels" style="display:grid;grid-template-columns:repeat('+totalCols+',15px);gap:2px">'+
+    Array.from({length:totalCols}).map((_,i)=>{const mp=monthPos.find(m=>m.col===i);return mp?'<span style="font-size:0.6rem;color:var(--text-dim)">'+mp.label+'</span>':'<span></span>';}).join('')+'</div>';
+  const cellsHtml=cells.map(c=>c?'<div class="heatmap-cell" style="background:'+getHeatColor(c.cnt)+'" title="'+c.iso+(c.cnt?' · '+c.cnt+' pedido'+(c.cnt!==1?'s':''):'')+'"></div>':'<div class="heatmap-cell" style="background:transparent"></div>').join('');
+  contenidoEl.insertAdjacentHTML('beforeend',
+    '<div class="chart-card" style="margin-top:1rem">'+
+      '<div class="chart-title"><span class="chart-title-dot" style="background:var(--accent)"></span>Mapa de calor — pedidos por día (últimos 12 meses)</div>'+
+      '<div class="heatmap-wrap">'+monthLabels+
+      '<div class="heatmap-outer">'+
+        '<div class="heatmap-day-labels"><span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span></div>'+
+        '<div class="heatmap-grid">'+cellsHtml+'</div>'+
+      '</div></div>'+
+      '<div class="heatmap-legend"><span>Menos</span>'+[0,0.18,0.4,0.65,0.9].map(o=>'<div style="width:12px;height:12px;border-radius:2px;background:'+(o===0?'var(--border)':'rgba(192,57,43,'+o+')')+'"></div>').join('')+'<span>Más</span></div>'+
+    '</div>');
+
 }
 
 // ── EXPORTAR ──────────────────────────────────────────
