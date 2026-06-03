@@ -275,6 +275,52 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .mapa-ruta-badge{background:rgba(192,57,43,0.12);border:1px solid rgba(192,57,43,0.3);color:var(--accent);border-radius:999px;padding:0.25rem 0.8rem;font-size:0.76rem;font-weight:700;font-family:var(--mono);}
 .mapa-btn-ruta{background:rgba(192,57,43,0.1);border:1px solid rgba(192,57,43,0.3);color:var(--accent);border-radius:var(--radius-sm);padding:0.28rem 0.7rem;font-family:var(--font);font-size:0.74rem;font-weight:600;cursor:pointer;margin-top:0.4rem;white-space:nowrap;}
 .mapa-btn-ruta:hover{background:rgba(192,57,43,0.2);}
+
+/* ── TEMA OSCURO ────────────────────────────────────────── */
+:root.dark{--bg:#0f1114;--bg-card:#181c21;--bg-hover:#1f252d;--border:#2a313c;--text:#eaedf2;--text-muted:#7a8494;--text-dim:#4a5260;--shadow:0 4px 24px rgba(0,0,0,0.4);}
+/* ── TAMAÑO DE TEXTO ────────────────────────────────────── */
+html.font-small{font-size:13px;}
+html.font-large{font-size:18px;}
+/* ── MODO COMPACTO ──────────────────────────────────────── */
+body.compact .card{padding:0.75rem 1rem;}
+body.compact .data-table td,body.compact .data-table th{padding:0.4rem 0.65rem;}
+body.compact .main-content{padding:1rem 1.2rem;}
+body.compact .kpi-card{padding:0.75rem 1rem;}
+body.compact .sidebar-btn{padding:0.5rem 0.9rem;}
+body.compact .kpi-value{font-size:1.6rem;}
+/* ── PANEL DE CONFIGURACIÓN ─────────────────────────────── */
+.config-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.25);z-index:400;display:none;backdrop-filter:blur(2px);}
+.config-overlay.open{display:block;}
+.config-panel{position:fixed;top:0;right:0;width:300px;max-width:92vw;height:100vh;background:var(--bg-card);border-left:1px solid var(--border);z-index:401;transform:translateX(100%);transition:transform 0.28s cubic-bezier(0.4,0,0.2,1);overflow-y:auto;display:flex;flex-direction:column;box-shadow:-4px 0 24px rgba(0,0,0,0.12);}
+.config-panel.open{transform:translateX(0);}
+.config-header{display:flex;align-items:center;justify-content:space-between;padding:1.1rem 1.3rem;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg-card);z-index:1;}
+.config-header h3{font-size:1rem;font-weight:700;color:var(--text);}
+.config-close{background:none;border:none;color:var(--text-muted);font-size:1.1rem;cursor:pointer;padding:0.2rem 0.5rem;border-radius:4px;}
+.config-close:hover{color:var(--text);}
+.config-body{padding:1.2rem 1.3rem;display:flex;flex-direction:column;gap:1.6rem;flex:1;}
+.config-section{}
+.config-section-title{font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:1rem;padding-bottom:0.4rem;border-bottom:1px solid var(--border);}
+.config-row{display:flex;align-items:center;justify-content:space-between;gap:0.8rem;margin-bottom:0.75rem;}
+.config-row:last-child{margin-bottom:0;}
+.config-row-label{font-size:0.82rem;color:var(--text);font-weight:500;}
+.config-btn-group{display:flex;gap:0.3rem;}
+.config-btn{background:var(--bg);border:1px solid var(--border);color:var(--text-muted);border-radius:var(--radius-sm);padding:0.32rem 0.7rem;font-family:var(--font);font-size:0.77rem;font-weight:500;cursor:pointer;transition:all 0.15s;}
+.config-btn:hover{border-color:var(--accent);color:var(--accent);}
+.config-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700;}
+.config-colors{display:flex;gap:0.5rem;flex-wrap:wrap;}
+.config-color-dot{width:26px;height:26px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all 0.15s;outline:2px solid transparent;outline-offset:2px;}
+.config-color-dot:hover{transform:scale(1.15);}
+.config-color-dot.active{outline-color:var(--text);}
+.config-toggle{position:relative;width:42px;height:22px;flex-shrink:0;}
+.config-toggle input{opacity:0;width:0;height:0;}
+.config-toggle-track{position:absolute;inset:0;background:var(--border);border-radius:11px;cursor:pointer;transition:background 0.2s;}
+.config-toggle-track:before{content:'';position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform 0.2s;box-shadow:0 1px 4px rgba(0,0,0,0.2);}
+.config-toggle input:checked + .config-toggle-track{background:var(--accent);}
+.config-toggle input:checked + .config-toggle-track:before{transform:translateX(20px);}
+.config-sidebar-btn{width:100%;display:flex;align-items:center;gap:0.65rem;padding:0.7rem 0.9rem;border:none;background:transparent;color:var(--text-muted);font-family:var(--font);font-size:0.82rem;font-weight:500;border-radius:var(--radius-sm);cursor:pointer;transition:all 0.18s ease;text-align:left;margin-top:0.3rem;}
+.config-sidebar-btn:hover{background:var(--bg-hover);color:var(--text);}
+.config-sidebar-btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;}
+
 @media print{body{background:#fff!important;color:#111!important;}#pantalla-login,#app .navbar,.sidebar,.btn-logout,.modal-overlay,.toast{display:none!important;}#app{display:block!important;}.layout{display:block!important;height:auto!important;}.main-content{padding:0!important;overflow:visible!important;}.tab-content{display:none!important;}#tab-calendario{display:block!important;}.semana-grid{gap:4px!important;}.dia-col{background:#fff!important;border:1px solid #ddd!important;min-height:120px!important;break-inside:avoid;}.dia-header{background:#f9f9f9!important;border-bottom:1px solid #ddd!important;}}
 </style>
 </head>
@@ -324,6 +370,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         <div class="usuario-badge"><div class="badge-dot"></div><span class="badge-name" id="badge-nombre"></span></div>
         <div class="sync-status" id="sync-status"><div class="sync-dot offline" id="sync-dot"></div><span id="sync-label">Local</span></div>
         <span class="fecha-actual" id="fechaActual"></span>
+        <button class="config-sidebar-btn" onclick="abrirConfig()"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configuración</button>
         <button class="btn-logout" onclick="cerrarSesion()">Salir</button>
       </div>
     </aside>
@@ -601,6 +648,70 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
   </div>
 </div>
 
+<!-- PANEL CONFIGURACIÓN -->
+<div class="config-overlay" id="config-overlay" onclick="cerrarConfig()"></div>
+<div class="config-panel" id="config-panel">
+  <div class="config-header">
+    <h3>⚙️ Configuración</h3>
+    <button class="config-close" onclick="cerrarConfig()">&#x2715;</button>
+  </div>
+  <div class="config-body">
+
+    <div class="config-section">
+      <div class="config-section-title">Apariencia</div>
+      <div class="config-row">
+        <span class="config-row-label">Tema</span>
+        <div class="config-btn-group">
+          <button class="config-btn" id="cfg-light" onclick="setTema('light')">☀️ Claro</button>
+          <button class="config-btn" id="cfg-dark" onclick="setTema('dark')">🌙 Oscuro</button>
+        </div>
+      </div>
+      <div class="config-row" style="align-items:flex-start">
+        <span class="config-row-label">Color de acento</span>
+        <div class="config-colors">
+          <div class="config-color-dot" id="cfg-color-rojo"    style="background:#c0392b" onclick="setAccent('#c0392b','#96281b')" title="Rojo"></div>
+          <div class="config-color-dot" id="cfg-color-ambar"   style="background:#e8a838" onclick="setAccent('#e8a838','#b07e22')" title="Ámbar"></div>
+          <div class="config-color-dot" id="cfg-color-azul"    style="background:#2980b9" onclick="setAccent('#2980b9','#1a5276')" title="Azul"></div>
+          <div class="config-color-dot" id="cfg-color-verde"   style="background:#27ae60" onclick="setAccent('#27ae60','#1e8449')" title="Verde"></div>
+          <div class="config-color-dot" id="cfg-color-violeta" style="background:#8e44ad" onclick="setAccent('#8e44ad','#6c3483')" title="Violeta"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="config-section">
+      <div class="config-section-title">Texto</div>
+      <div class="config-row">
+        <span class="config-row-label">Tamaño</span>
+        <div class="config-btn-group">
+          <button class="config-btn" id="cfg-font-small"  onclick="setFontSize('small')" style="font-size:0.7rem">A−</button>
+          <button class="config-btn" id="cfg-font-normal" onclick="setFontSize('normal')">A</button>
+          <button class="config-btn" id="cfg-font-large"  onclick="setFontSize('large')" style="font-size:0.9rem">A+</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="config-section">
+      <div class="config-section-title">Diseño</div>
+      <div class="config-row">
+        <span class="config-row-label">Modo compacto</span>
+        <label class="config-toggle">
+          <input type="checkbox" id="cfg-compact" onchange="setCompact(this.checked)"/>
+          <span class="config-toggle-track"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="config-section">
+      <div class="config-section-title">Idioma</div>
+      <div class="config-row">
+        <span class="config-row-label">Próximamente</span>
+        <span style="font-size:0.75rem;color:var(--text-dim)">🇪🇸 Español</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -626,6 +737,7 @@ let _remitoIdPendiente=null, _remitoBase64=null;
 
 // ── INIT ──────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
+  cargarConfig();
   const { data:{ session } } = await sb.auth.getSession();
   if (session) await iniciarApp(session.user);
 });
@@ -1525,6 +1637,75 @@ function renderImportaciones() {
       '<td>'+(esAdmin?'<div class="actions-cell"><button class="btn btn-danger" onclick="eliminarImportacion('+imp.id+')">Eliminar</button></div>':'')+'</td>'+
       '</tr>';
   }).join('');
+}
+
+// ── CONFIGURACIÓN ─────────────────────────────────────
+const CFG_KEY = 'bd_config';
+const CFG_COLORS = {
+  '#c0392b':'rojo', '#e8a838':'ambar', '#2980b9':'azul', '#27ae60':'verde', '#8e44ad':'violeta'
+};
+let cfg = { tema:'light', acento:'#c0392b', acentoDim:'#96281b', fontSize:'normal', compact:false };
+
+function cargarConfig() {
+  try { const s=localStorage.getItem(CFG_KEY); if(s) cfg={...cfg,...JSON.parse(s)}; } catch(e){}
+  aplicarConfig();
+}
+
+function guardarConfig() {
+  try { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); } catch(e){}
+}
+
+function aplicarConfig() {
+  // Tema
+  document.documentElement.classList.toggle('dark', cfg.tema==='dark');
+  // Acento
+  document.documentElement.style.setProperty('--accent', cfg.acento);
+  document.documentElement.style.setProperty('--accent-dim', cfg.acentoDim);
+  // Fuente
+  document.documentElement.classList.remove('font-small','font-large');
+  if(cfg.fontSize==='small') document.documentElement.classList.add('font-small');
+  if(cfg.fontSize==='large') document.documentElement.classList.add('font-large');
+  // Compacto
+  document.body.classList.toggle('compact', cfg.compact);
+}
+
+function actualizarUIConfig() {
+  document.getElementById('cfg-light')?.classList.toggle('active', cfg.tema==='light');
+  document.getElementById('cfg-dark')?.classList.toggle('active', cfg.tema==='dark');
+  document.getElementById('cfg-font-small')?.classList.toggle('active', cfg.fontSize==='small');
+  document.getElementById('cfg-font-normal')?.classList.toggle('active', cfg.fontSize==='normal');
+  document.getElementById('cfg-font-large')?.classList.toggle('active', cfg.fontSize==='large');
+  const compact=document.getElementById('cfg-compact'); if(compact) compact.checked=cfg.compact;
+  Object.keys(CFG_COLORS).forEach(hex=>{
+    document.getElementById('cfg-color-'+CFG_COLORS[hex])?.classList.toggle('active', cfg.acento===hex);
+  });
+}
+
+function abrirConfig() {
+  actualizarUIConfig();
+  document.getElementById('config-panel').classList.add('open');
+  document.getElementById('config-overlay').classList.add('open');
+}
+
+function cerrarConfig() {
+  document.getElementById('config-panel').classList.remove('open');
+  document.getElementById('config-overlay').classList.remove('open');
+}
+
+function setTema(tema) {
+  cfg.tema=tema; aplicarConfig(); guardarConfig(); actualizarUIConfig();
+}
+
+function setAccent(hex, dim) {
+  cfg.acento=hex; cfg.acentoDim=dim; aplicarConfig(); guardarConfig(); actualizarUIConfig();
+}
+
+function setFontSize(size) {
+  cfg.fontSize=size; aplicarConfig(); guardarConfig(); actualizarUIConfig();
+}
+
+function setCompact(val) {
+  cfg.compact=val; aplicarConfig(); guardarConfig();
 }
 
 // ── UTILS ─────────────────────────────────────────────
