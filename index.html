@@ -969,6 +969,7 @@ async function cargarDatos() {
       comentarios:p.comentarios, estado:p.estado||'pendiente', remito:p.remito,
       tipoEntrega:p.tipo_entrega||'envio',
       horaInicio:p.hora_inicio||null, horaFin:p.hora_fin||null,
+      remitoNumero:p.remito_numero||null,
       productos:(p.pedido_items||[]).map(it=>({id:it.producto_id,nombre:it.nombre,cantidad:it.cantidad}))
     }));
     setSyncStatus('online');
@@ -1093,13 +1094,18 @@ async function cambiarEstado(id,nuevoEstado) {
 async function confirmarEnCamino() {
   if(!_remitoIdPendiente||!_remitoBase64){toast('Subí la foto del remito',true);return;}
   const idx=pedidos.findIndex(p=>p.id===_remitoIdPendiente); if(idx===-1){cerrarModalRemito();return;}
+  // Obtener siguiente número de remito
+  const {data:rData}=await sb.from('pedidos').select('remito_numero').not('remito_numero','is',null).order('remito_numero',{ascending:false}).limit(1);
+  const numRemito=(rData&&rData.length&&rData[0].remito_numero)?rData[0].remito_numero+1:832;
   setSyncStatus('syncing');
-  const {error}=await sb.from('pedidos').update({estado:'camino',remito:_remitoBase64}).eq('id',_remitoIdPendiente);
+  const {error}=await sb.from('pedidos').update({estado:'camino',remito:_remitoBase64,remito_numero:numRemito}).eq('id',_remitoIdPendiente);
   if(error){toast('Error: '+error.message,true);setSyncStatus('offline');return;}
-  pedidos[idx].estado='camino'; pedidos[idx].remito=_remitoBase64;
+  pedidos[idx].estado='camino'; pedidos[idx].remito=_remitoBase64; pedidos[idx].remitoNumero=numRemito;
   setSyncStatus('online'); cerrarModalRemito(); renderPedidos(); renderCalendario();
-  registrarAuditoria('cambiar','pedido',_remitoIdPendiente,'Marcó en camino con remito: '+( pedidos[pedidos.findIndex(p=>p.id===_remitoIdPendiente)]?.oc||_remitoIdPendiente));
-  toast('En camino ✓'); enviarWhatsApp(pedidos[idx]);
+  registrarAuditoria('cambiar','pedido',_remitoIdPendiente,'Marcó en camino — Remito #'+numRemito+': '+(pedidos[idx]?.oc||_remitoIdPendiente));
+  toast('En camino ✓ — Remito #'+numRemito);
+  enviarWhatsApp(pedidos[idx]);
+  setTimeout(()=>generarRemitoPDF(pedidos[idx],numRemito),600);
 }
 
 function enviarWhatsApp(p) {
@@ -1288,7 +1294,7 @@ function renderPedidos(){
     const vencidoBadge=esVencido?'<span class="vencido-badge">⚠ Vencido</span>':'';
     const prods=(p.productos||[]).map(pr=>'<span class="prod-badge">'+esc(pr.nombre)+' &times;'+pr.cantidad+'</span>').join('');
     const btnEstado=botonesEstado(p.id,estado,esLogistica,esViewer);
-    const remitoThumb=p.remito?'<img src="'+p.remito+'" class="remito-thumb" onclick="verRemito('+p.id+')" title="Ver remito" style="margin-top:0.3rem"/>':'';
+    const remitoThumb=p.remito?'<img src="'+p.remito+'" class="remito-thumb" onclick="verRemito('+p.id+')" title="Ver remito" style="margin-top:0.3rem"/>'+( p.remitoNumero?'<br><button onclick="generarRemitoPDF_byId('+p.id+')" style="font-size:0.68rem;background:none;border:none;color:var(--accent);cursor:pointer;padding:0.1rem 0;margin-top:0.2rem">🖨 Remito #'+p.remitoNumero+'</button>':''):'  ';
     const esRetiro=(p.tipoEntrega||'envio')==='retiro';
     const entregaBadge=esRetiro
       ?'<span style="font-size:0.7rem;background:rgba(41,128,185,0.1);color:#2980b9;border:1px solid rgba(41,128,185,0.3);border-radius:4px;padding:0.15rem 0.5rem;white-space:nowrap">🏭 Retiro</span>'
@@ -2333,6 +2339,93 @@ function setFontSize(size) {
 function setCompact(val) {
   cfg.compact=val; aplicarConfig(); guardarConfig();
 }
+
+// ── REMITO PDF ────────────────────────────────────────
+function generarRemitoPDF_byId(id){
+  const p=pedidos.find(x=>x.id===id); if(!p||!p.remitoNumero)return;
+  generarRemitoPDF(p,p.remitoNumero);
+}
+
+function generarRemitoPDF(pedido,numero){
+  const cliente=clientes.find(c=>c.id===pedido.clienteId)||{};
+  const ahora=new Date();
+  const fecha=ahora.toLocaleDateString('es-UY',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const escR=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const minRows=10;
+  const prods=pedido.productos||[];
+  let rows='';
+  prods.forEach(pr=>{rows+='<tr><td class="art"></td><td class="desc">'+escR(pr.nombre)+'</td><td class="qty">'+pr.cantidad+'</td></tr>';});
+  for(let i=prods.length;i<minRows;i++){rows+='<tr><td class="art"></td><td class="desc"></td><td class="qty"></td></tr>';}
+
+  const html='<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/><title>Remito N° '+numero+'</title><style>'
+    +'*{margin:0;padding:0;box-sizing:border-box;}'
+    +'body{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#000;background:#fff;padding:18px 22px;}'
+    +'.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;border:1px solid #555;padding:10px 14px;}'
+    +'.header-left{display:flex;gap:14px;align-items:flex-start;}'
+    +'.logo-box{width:62px;height:62px;background:#2d2d2d;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-weight:bold;flex-shrink:0;}'
+    +'.logo-log{font-size:11px;line-height:1.2;} .logo-74{font-size:24px;line-height:1;font-weight:800;}'
+    +'.co-table{border-collapse:collapse;} .co-table td{padding:2px 5px;vertical-align:top;font-size:11px;} .co-label{font-weight:bold;white-space:nowrap;}'
+    +'.remito-box{border:2px solid #000;padding:8px 18px;text-align:center;min-width:130px;}'
+    +'.remito-title{font-weight:bold;font-size:13px;letter-spacing:2px;margin-bottom:6px;}'
+    +'.remito-num{font-size:22px;font-weight:800;margin-bottom:8px;}'
+    +'.fecha-row{display:flex;align-items:baseline;gap:6px;justify-content:center;}'
+    +'.fecha-lbl{font-size:10px;} .fecha-val{font-size:12px;font-weight:bold;}'
+    +'.client-section{margin-bottom:14px;padding:2px 0;} .client-section p{margin-bottom:5px;font-size:12px;}'
+    +'.cl{font-weight:bold;display:inline-block;width:150px;}'
+    +'table.prods{width:100%;border-collapse:collapse;margin-bottom:16px;}'
+    +'table.prods th{background:#d8d8d8;border:1px solid #000;padding:5px 8px;font-size:11px;text-transform:uppercase;font-weight:bold;text-align:center;}'
+    +'table.prods td{border:1px solid #000;padding:3px 7px;height:22px;font-size:11px;}'
+    +'table.prods td.art{width:75px;} table.prods td.qty{width:85px;text-align:center;}'
+    +'.sig-section{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:28px;margin-top:6px;}'
+    +'.sig-left{font-weight:bold;font-size:12px;} .sig-right{text-align:center;min-width:220px;}'
+    +'.sig-space{height:55px;} .sig-line{border-top:1.5px solid #000;padding-top:4px;font-weight:bold;font-size:11px;text-align:center;}'
+    +'.transp{border-top:2px solid #000;padding-top:10px;} .transp-title{font-weight:bold;font-size:12px;margin-bottom:7px;}'
+    +'.transp p{margin-bottom:4px;font-size:11px;} .tf{font-weight:bold;display:inline-block;min-width:130px;}'
+    +'.transp-bottom{display:flex;justify-content:space-between;margin-top:6px;}'
+    +'@media print{body{padding:8px 12px;}@page{margin:12mm;size:A4;}}'
+    +'</style></head><body>'
+    +'<div class="header"><div class="header-left">'
+    +'<div class="logo-box"><span class="logo-log">log</span><span class="logo-74">74</span></div>'
+    +'<table class="co-table">'
+    +'<tr><td class="co-label">Razón Social</td><td>LOGISTICA 74 (Pilanor SA)</td></tr>'
+    +'<tr><td class="co-label">RUT</td><td>218365040016</td></tr>'
+    +'<tr><td></td><td></td></tr>'
+    +'<tr><td class="co-label">Dirección</td><td>Ruta 74 Km 25,500</td></tr>'
+    +'<tr><td class="co-label">Localidad</td><td>Joaquín Suárez</td></tr>'
+    +'<tr><td class="co-label">Teléfono</td><td></td></tr>'
+    +'</table></div>'
+    +'<div class="remito-box"><div class="remito-title">REMITO</div><div class="remito-num">'+numero+'</div>'
+    +'<div class="fecha-row"><span class="fecha-lbl">Fecha</span><span class="fecha-val">'+fecha+'</span></div></div></div>'
+    +'<div class="client-section">'
+    +'<p><span class="cl">NOMBRE :</span>'+escR(pedido.empresa)+'</p>'
+    +'<p><span class="cl">DIRECCION</span>'+escR(cliente.direccion||'')+'</p>'
+    +'<p><span class="cl">N DE ORDEN:</span>'+escR(pedido.oc)+'</p>'
+    +'<p><span class="cl">POR CUENTA Y ORDEN:</span>'+escR(pedido.obra)+'</p>'
+    +'</div>'
+    +'<table class="prods"><thead><tr>'
+    +'<th style="width:75px">ARTÍCULO</th><th>DESCRIPCIÓN</th><th style="width:85px">CANTIDAD</th>'
+    +'</tr></thead><tbody>'+rows+'</tbody></table>'
+    +'<div class="sig-section">'
+    +'<div class="sig-left">RECIBI CONFORME:</div>'
+    +'<div class="sig-right"><div class="sig-space"></div><div class="sig-line">FIRMA Y SELLO</div></div>'
+    +'</div>'
+    +'<div class="transp"><div class="transp-title">DATOS DEL TRANSPORTISTA</div>'
+    +'<p><span class="tf">Nombre</span>'+escR(pedido.transportista||'')+'</p>'
+    +'<p><span class="tf">Datos del Vehículo</span></p>'
+    +'<p><span class="tf">Chofer</span></p>'
+    +'<div class="transp-bottom">'
+    +'<p><span class="tf">Lugar de Entrega</span>'+escR(cliente.direccion||pedido.obra||'')+'</p>'
+    +'<p><span class="tf">Fecha</span>'+fecha+'</p>'
+    +'</div></div>'
+    +'<script>window.onload=function(){window.print();}' + '<' + '/script>'
+    +'</body></html>';
+
+  const win=window.open('','_blank');
+  if(!win){toast('Habilitá las ventanas emergentes para imprimir',true);return;}
+  win.document.write(html);
+  win.document.close();
+}
+
 
 // ── UTILS ─────────────────────────────────────────────
 function val(id){const e=document.getElementById(id);return e?e.value.trim():'';}
