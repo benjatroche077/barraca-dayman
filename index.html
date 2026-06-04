@@ -2358,53 +2358,101 @@ function generarRemitoPDF(pedido,numero){
   const fecha=new Date().toLocaleDateString('es-UY',{day:'2-digit',month:'2-digit',year:'numeric'});
   const escR=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const prods=pedido.productos||[];
+  // Tabla de productos: mínimo 10 filas
   let rows='';
-  prods.forEach(pr=>{rows+='<tr><td style="border:1px solid #000;width:75px;padding:3px 7px;height:22px"></td><td style="border:1px solid #000;padding:3px 7px;height:22px">'+escR(pr.nombre)+'</td><td style="border:1px solid #000;width:85px;text-align:center;padding:3px 7px;height:22px">'+pr.cantidad+'</td></tr>';});
-  for(let i=prods.length;i<10;i++){rows+='<tr><td style="border:1px solid #000;width:75px;height:22px"></td><td style="border:1px solid #000;height:22px"></td><td style="border:1px solid #000;width:85px;height:22px"></td></tr>';}
+  const LINE='border:1px solid #aaa;padding:4px 6px;height:24px;font-size:11px;';
+  for(let i=0;i<10;i++){
+    const pr=prods[i];
+    const bg=i%2===0?'':'background:#f5f5f5;';
+    rows+='<tr>'
+      +'<td style="'+LINE+bg+'width:70px;text-align:center"></td>'
+      +'<td style="'+LINE+bg+'">'+( pr?escR(pr.nombre):'')+'</td>'
+      +'<td style="'+LINE+bg+'width:80px;text-align:center">'+( pr?pr.cantidad:'')+'</td>'
+      +'</tr>';
+  }
+  rows+='<tr><td style="border:1px solid #aaa;height:20px" colspan="3"></td></tr>';
+
+  const FLD=(lbl,val)=>'<div style="display:flex;align-items:baseline;margin-bottom:6px;font-size:12px">'
+    +'<span style="font-weight:bold;min-width:160px">'+lbl+'</span>'
+    +'<span style="flex:1;border-bottom:1px solid #000;min-width:200px;padding-bottom:1px">'+escR(val||'')+'</span>'
+    +'</div>';
+  const TRFLD=(lbl,val)=>'<p style="margin-bottom:6px;font-size:11px">'
+    +'<span style="font-weight:bold;display:inline-block;min-width:130px">'+lbl+'</span>'
+    +'<span style="display:inline-block;border-bottom:1px solid #000;min-width:250px">'+escR(val||'')+'</span>'
+    +'</p>';
 
   const div=document.getElementById('remito-print-area');
-  div.style.fontFamily='Arial,Helvetica,sans-serif';
-  div.style.fontSize='11px';
-  div.style.color='#000';
-  div.style.padding='18px 22px';
+  div.style.cssText='font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#000;padding:20px 24px;background:#fff';
 
   div.innerHTML=
-    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;border:1px solid #555;padding:10px 14px">'+
-    '<div style="display:flex;gap:14px;align-items:flex-start">'+
-    '<div style="width:62px;height:62px;background:#2d2d2d;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-weight:bold;flex-shrink:0">'+
-    '<span style="font-size:11px;line-height:1.2">log</span><span style="font-size:24px;line-height:1;font-weight:800">74</span></div>'+
-    '<table style="border-collapse:collapse"><tr><td style="padding:2px 5px;font-weight:bold;white-space:nowrap">Raz&oacute;n Social</td><td style="padding:2px 5px">LOGISTICA 74 (Pilanor SA)</td></tr>'+
-    '<tr><td style="padding:2px 5px;font-weight:bold">RUT</td><td style="padding:2px 5px">218365040016</td></tr><tr><td></td><td></td></tr>'+
-    '<tr><td style="padding:2px 5px;font-weight:bold">Direcci&oacute;n</td><td style="padding:2px 5px">Ruta 74 Km 25,500</td></tr>'+
-    '<tr><td style="padding:2px 5px;font-weight:bold">Localidad</td><td style="padding:2px 5px">Joaqu&iacute;n Su&aacute;rez</td></tr>'+
-    '<tr><td style="padding:2px 5px;font-weight:bold">Tel&eacute;fono</td><td style="padding:2px 5px"></td></tr></table></div>'+
-    '<div style="border:2px solid #000;padding:8px 18px;text-align:center;min-width:130px">'+
-    '<div style="font-weight:bold;font-size:13px;letter-spacing:2px;margin-bottom:6px">REMITO</div>'+
-    '<div style="font-size:22px;font-weight:800;margin-bottom:8px">'+numero+'</div>'+
-    '<div style="display:flex;align-items:baseline;gap:6px;justify-content:center">'+
-    '<span style="font-size:10px">Fecha</span><span style="font-size:12px;font-weight:bold">'+fecha+'</span></div></div></div>'+
-    '<div style="margin-bottom:14px">'+
-    '<p style="margin-bottom:5px;font-size:12px"><span style="font-weight:bold;display:inline-block;width:150px">NOMBRE :</span>'+escR(pedido.empresa)+'</p>'+
-    '<p style="margin-bottom:5px;font-size:12px"><span style="font-weight:bold;display:inline-block;width:150px">DIRECCION</span>'+escR(cliente.direccion||'')+'</p>'+
-    '<p style="margin-bottom:5px;font-size:12px"><span style="font-weight:bold;display:inline-block;width:150px">N DE ORDEN:</span>'+escR(pedido.oc)+'</p>'+
-    '<p style="margin-bottom:5px;font-size:12px"><span style="font-weight:bold;display:inline-block;width:150px">POR CUENTA Y ORDEN:</span>'+escR(pedido.obra)+'</p></div>'+
-    '<table style="width:100%;border-collapse:collapse;margin-bottom:16px">'+
-    '<thead><tr><th style="background:#d8d8d8;border:1px solid #000;padding:5px 8px;width:75px">ART&Iacute;CULO</th>'+
-    '<th style="background:#d8d8d8;border:1px solid #000;padding:5px 8px">DESCRIPCI&Oacute;N</th>'+
-    '<th style="background:#d8d8d8;border:1px solid #000;padding:5px 8px;width:85px">CANTIDAD</th></tr></thead>'+
-    '<tbody>'+rows+'</tbody></table>'+
-    '<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:28px">'+
-    '<div style="font-weight:bold;font-size:12px">RECIBI CONFORME:</div>'+
-    '<div style="text-align:center;min-width:220px"><div style="height:55px"></div>'+
-    '<div style="border-top:1.5px solid #000;padding-top:4px;font-weight:bold;font-size:11px">FIRMA Y SELLO</div></div></div>'+
-    '<div style="border-top:2px solid #000;padding-top:10px">'+
-    '<div style="font-weight:bold;font-size:12px;margin-bottom:7px">DATOS DEL TRANSPORTISTA</div>'+
-    '<p style="margin-bottom:4px"><span style="font-weight:bold;display:inline-block;min-width:130px">Nombre</span>'+escR(pedido.transportista||'')+'</p>'+
-    '<p style="margin-bottom:4px"><span style="font-weight:bold;display:inline-block;min-width:130px">Datos del Veh&iacute;culo</span></p>'+
-    '<p style="margin-bottom:4px"><span style="font-weight:bold;display:inline-block;min-width:130px">Chofer</span></p>'+
-    '<div style="display:flex;justify-content:space-between;margin-top:6px">'+
-    '<p><span style="font-weight:bold;display:inline-block;min-width:130px">Lugar de Entrega</span>'+escR(cliente.direccion||pedido.obra||'')+'</p>'+
-    '<p><span style="font-weight:bold;display:inline-block;min-width:80px">Fecha</span>'+fecha+'</p></div></div>';
+    // ── CABECERA ──────────────────────────────────────────────────────
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px">'
+      // Logo + datos empresa
+      +'<div style="display:flex;gap:16px;align-items:flex-start">'
+        +'<div style="border:2px solid #000;width:68px;height:68px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0">'
+          +'<span style="font-size:14px;font-weight:bold;line-height:1.1">log</span>'
+          +'<span style="font-size:26px;font-weight:900;line-height:1">74</span>'
+        +'</div>'
+        +'<table style="border-collapse:collapse;font-size:11px">'
+          +'<tr><td style="font-weight:bold;padding:2px 6px 2px 0;white-space:nowrap">Raz&oacute;n Social</td><td style="padding:2px 0">LOGISTICA 74 (Pilanor SA)</td></tr>'
+          +'<tr><td style="font-weight:bold;padding:2px 6px 2px 0">RUT</td><td>218365040016</td></tr>'
+          +'<tr><td style="padding:4px 0" colspan="2"></td></tr>'
+          +'<tr><td style="font-weight:bold;padding:2px 6px 2px 0">Direcci&oacute;n</td><td>Ruta 74 Km 25,500</td></tr>'
+          +'<tr><td style="font-weight:bold;padding:2px 6px 2px 0">Localidad</td><td>Joaqu&iacute;n Suarez</td></tr>'
+          +'<tr><td style="font-weight:bold;padding:2px 6px 2px 0">Tel&eacute;fono</td><td></td></tr>'
+        +'</table>'
+      +'</div>'
+      // Caja REMITO
+      +'<div style="border:2px solid #000;padding:10px 20px;text-align:center;min-width:140px">'
+        +'<div style="font-weight:bold;font-size:14px;letter-spacing:3px;margin-bottom:6px">REMITO</div>'
+        +'<div style="font-size:28px;font-weight:900;margin-bottom:10px">'+numero+'</div>'
+        +'<div style="font-size:11px;display:flex;align-items:baseline;gap:6px;justify-content:center">'
+          +'<span style="font-weight:bold">Fecha</span>'
+          +'<span style="border-bottom:1px solid #000;display:inline-block;min-width:90px;text-align:center">'+fecha+'</span>'
+        +'</div>'
+      +'</div>'
+    +'</div>'
+
+    // ── DATOS CLIENTE ──────────────────────────────────────────────────
+    +'<div style="margin-bottom:16px;padding:4px 0">'
+      +FLD('NOMBRE :',     pedido.empresa)
+      +FLD('DIRECCION',    cliente.direccion)
+      +FLD('N DE ORDEN:',  pedido.oc)
+      +FLD('POR CUENTA Y ORDEN:', pedido.obra)
+    +'</div>'
+
+    // ── TABLA DE PRODUCTOS ─────────────────────────────────────────────
+    +'<table style="width:100%;border-collapse:collapse;margin-bottom:18px">'
+      +'<thead><tr>'
+        +'<th style="background:#ddd;border:1px solid #aaa;padding:5px 6px;font-size:11px;width:70px;text-align:center">ART&Iacute;CULO</th>'
+        +'<th style="background:#ddd;border:1px solid #aaa;padding:5px 6px;font-size:11px;text-align:center">DESCRIPCI&Oacute;N</th>'
+        +'<th style="background:#ddd;border:1px solid #aaa;padding:5px 6px;font-size:11px;width:80px;text-align:center">CANTIDAD</th>'
+      +'</tr></thead>'
+      +'<tbody>'+rows+'</tbody>'
+    +'</table>'
+
+    // ── FIRMA ──────────────────────────────────────────────────────────
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:24px">'
+      +'<div style="font-weight:bold;font-size:12px">RECIBI CONFORME:</div>'
+      +'<div style="text-align:center">'
+        +'<div style="border:1px solid #000;width:240px;height:70px"></div>'
+        +'<div style="font-size:11px;font-weight:bold;margin-top:4px;text-align:center">FIRMA Y SELLO</div>'
+      +'</div>'
+    +'</div>'
+
+    // ── TRANSPORTISTA ──────────────────────────────────────────────────
+    +'<div style="border-top:2px solid #000;padding-top:10px">'
+      +'<div style="font-weight:bold;font-size:12px;margin-bottom:8px">DATOS DEL TRANSPORTISTA</div>'
+      +TRFLD('Nombre', pedido.transportista)
+      +TRFLD('Datos del Veh&iacute;culo','')
+      +TRFLD('Chofer','')
+      +'<div style="display:flex;justify-content:space-between;margin-top:4px">'
+        +'<p style="font-size:11px"><span style="font-weight:bold;margin-right:8px">Lugar de Entrega</span>'
+          +'<span style="border-bottom:1px solid #000;display:inline-block;min-width:160px">'+escR(cliente.direccion||pedido.obra||'')+'</span></p>'
+        +'<p style="font-size:11px"><span style="font-weight:bold;margin-right:8px">Fecha</span>'
+          +'<span style="border-bottom:1px solid #000;display:inline-block;min-width:100px">'+fecha+'</span></p>'
+      +'</div>'
+    +'</div>';
 
   document.body.classList.add('imprimiendo-remito');
   setTimeout(()=>{
