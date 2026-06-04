@@ -1091,22 +1091,8 @@ async function cambiarEstado(id,nuevoEstado) {
   if(nuevoEstado==='camino') enviarWhatsApp(pedidos[idx]);
 }
 
-async function confirmarEnCamino() {
-  if(!_remitoIdPendiente||!_remitoBase64){toast('Subí la foto del remito',true);return;}
-  const idx=pedidos.findIndex(p=>p.id===_remitoIdPendiente); if(idx===-1){cerrarModalRemito();return;}
-  // Obtener siguiente número de remito
-  const {data:rData}=await sb.from('pedidos').select('remito_numero').not('remito_numero','is',null).order('remito_numero',{ascending:false}).limit(1);
-  const numRemito=(rData&&rData.length&&rData[0].remito_numero)?rData[0].remito_numero+1:832;
-  setSyncStatus('syncing');
-  const {error}=await sb.from('pedidos').update({estado:'camino',remito:_remitoBase64,remito_numero:numRemito}).eq('id',_remitoIdPendiente);
-  if(error){toast('Error: '+error.message,true);setSyncStatus('offline');return;}
-  pedidos[idx].estado='camino'; pedidos[idx].remito=_remitoBase64; pedidos[idx].remitoNumero=numRemito;
-  setSyncStatus('online'); cerrarModalRemito(); renderPedidos(); renderCalendario();
-  registrarAuditoria('cambiar','pedido',_remitoIdPendiente,'Marcó en camino — Remito #'+numRemito+': '+(pedidos[idx]?.oc||_remitoIdPendiente));
-  toast('En camino ✓ — Remito #'+numRemito);
-  enviarWhatsApp(pedidos[idx]);
-  setTimeout(()=>generarRemitoPDF(pedidos[idx],numRemito),600);
-}
+// confirmarEnCamino ya no se usa — reemplazado por pedirRemitoYCambiarEstado
+function confirmarEnCamino(){}
 
 function enviarWhatsApp(p) {
   const cliente=clientes.find(c=>c.id===p.clienteId);
@@ -1780,8 +1766,21 @@ function descargarCSV(csv,nombre){const a=document.createElement('a');a.href=URL
 function mostrarPreview(csv){const el=document.getElementById('preview-content');el.textContent=csv;el.style.display='block';document.getElementById('preview-hint').style.display='none';}
 
 // ── REMITO ────────────────────────────────────────────
-function pedirRemitoYCambiarEstado(id){_remitoIdPendiente=id;_remitoBase64=null;document.getElementById('remito-file').value='';document.getElementById('remito-preview').style.display='none';const btn=document.getElementById('btn-confirmar-remito');btn.disabled=true;btn.style.opacity='0.5';document.getElementById('modal-remito').classList.add('open');}
-function cerrarModalRemito(){document.getElementById('modal-remito').classList.remove('open');_remitoIdPendiente=null;_remitoBase64=null;}
+async function pedirRemitoYCambiarEstado(id){
+  const idx=pedidos.findIndex(p=>p.id===id); if(idx===-1)return;
+  const {data:rData}=await sb.from('pedidos').select('remito_numero').not('remito_numero','is',null).order('remito_numero',{ascending:false}).limit(1);
+  const numRemito=(rData&&rData.length&&rData[0].remito_numero)?rData[0].remito_numero+1:832;
+  setSyncStatus('syncing');
+  const {error}=await sb.from('pedidos').update({estado:'camino',remito_numero:numRemito}).eq('id',id);
+  if(error){toast('Error: '+error.message,true);setSyncStatus('offline');return;}
+  pedidos[idx].estado='camino'; pedidos[idx].remitoNumero=numRemito;
+  setSyncStatus('online'); renderPedidos(); renderCalendario();
+  registrarAuditoria('cambiar','pedido',id,'Marcó en camino — Remito #'+numRemito+': '+pedidos[idx].oc);
+  toast('En camino ✓ — Remito #'+numRemito);
+  enviarWhatsApp(pedidos[idx]);
+  generarRemitoPDF(pedidos[idx],numRemito);
+}
+function cerrarModalRemito(){document.getElementById('modal-remito')?.classList.remove('open');}
 function handleRemitoFile(file){if(!file)return;if(file.size>5*1024*1024){toast('Imagen muy grande. Máx 5MB.',true);return;}const reader=new FileReader();reader.onload=e=>{_remitoBase64=e.target.result;document.getElementById('remito-img-preview').src=_remitoBase64;document.getElementById('remito-preview').style.display='flex';const btn=document.getElementById('btn-confirmar-remito');btn.disabled=false;btn.style.opacity='1';};reader.readAsDataURL(file);}
 function handleRemitoDrop(event){event.preventDefault();const file=event.dataTransfer.files[0];if(file&&file.type.startsWith('image/'))handleRemitoFile(file);}
 function verRemito(id){const p=pedidos.find(x=>x.id===id);if(!p||!p.remito)return;const win=window.open('','_blank');win.document.write('<html><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="'+p.remito+'" style="max-width:100%;max-height:100vh;object-fit:contain"/></body></html>');}
