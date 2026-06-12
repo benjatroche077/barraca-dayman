@@ -625,12 +625,13 @@ body.compact .kpi-value{font-size:1.6rem;}
           <div style="display:flex;align-items:flex-end;gap:0.8rem;flex-wrap:wrap">
             <div class="form-group" style="flex:1;min-width:220px"><label>Nombre del Producto <span class="required">*</span></label><input type="text" id="np-nombre" placeholder="Ej: Pallet Bloques 20"/></div>
             <div class="form-group" style="flex:1;min-width:160px"><label>Medidas</label><input type="text" id="np-medidas" placeholder="Ej: 20x40x20 cm"/></div>
+            <div class="form-group" style="flex:1;min-width:140px"><label>Marca</label><input type="text" id="np-marca" placeholder="Ej: Losa"/></div>
             <button class="btn btn-primary" onclick="agregarProducto()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Agregar</button>
           </div>
         </div>
         <div class="card">
           <div class="table-wrapper">
-            <table class="data-table"><thead><tr><th>#</th><th>Nombre</th><th>Medidas</th><th>En pedidos</th><th>Acciones</th></tr></thead><tbody id="body-catalogo"></tbody></table>
+            <table class="data-table"><thead><tr><th>#</th><th>Nombre</th><th>Medidas</th><th>Marca</th><th>En pedidos</th><th>Acciones</th></tr></thead><tbody id="body-catalogo"></tbody></table>
           </div>
         </div>
       </section>
@@ -1199,15 +1200,17 @@ async function agregarProducto() {
   if(!nombre){toast('Ingresá el nombre',true);return;}
   if(PRODUCTOS.some(p=>p.nombre.toLowerCase()===nombre.toLowerCase())){toast('Ya existe ese producto',true);return;}
   const medidas=val('np-medidas')||null;
+  const marca=val('np-marca')||null;
   const id='prod_'+Date.now();
   setSyncStatus('syncing');
-  const {error:pe}=await sb.from('productos').insert({id,nombre,medidas,orden:PRODUCTOS.length+1});
+  const {error:pe}=await sb.from('productos').insert({id,nombre,medidas,marca,orden:PRODUCTOS.length+1});
   if(pe){toast('Error: '+pe.message,true);setSyncStatus('offline');return;}
   await sb.from('stock').insert({producto_id:id,cantidad:0});
-  PRODUCTOS.push({id,nombre,medidas}); stock[id]=0;
+  PRODUCTOS.push({id,nombre,medidas,marca}); stock[id]=0;
   setSyncStatus('online');
   document.getElementById('np-nombre').value='';
   document.getElementById('np-medidas').value='';
+  document.getElementById('np-marca').value='';
   construirProductosGrid(); construirImportGrid(); renderCatalogo();
   toast('Producto "'+nombre+'" agregado ✓');
 }
@@ -1231,12 +1234,14 @@ async function guardarEditProducto(id) {
   const nuevoNombre=inpN.value.trim();
   if(!nuevoNombre){toast('El nombre no puede estar vacío',true);return;}
   if(PRODUCTOS.some(p=>p.id!==id&&p.nombre.toLowerCase()===nuevoNombre.toLowerCase())){toast('Ya existe ese nombre',true);return;}
+  const inpMarca=document.getElementById('inline-edit-marca-'+id);
   const nuevasMedidas=inpM?inpM.value.trim()||null:null;
+  const nuevaMarca=inpMarca?inpMarca.value.trim()||null:null;
   setSyncStatus('syncing');
-  const {error}=await sb.from('productos').update({nombre:nuevoNombre,medidas:nuevasMedidas}).eq('id',id);
+  const {error}=await sb.from('productos').update({nombre:nuevoNombre,medidas:nuevasMedidas,marca:nuevaMarca}).eq('id',id);
   if(error){toast('Error: '+error.message,true);setSyncStatus('offline');return;}
   const idx=PRODUCTOS.findIndex(x=>x.id===id);
-  PRODUCTOS[idx].nombre=nuevoNombre; PRODUCTOS[idx].medidas=nuevasMedidas;
+  PRODUCTOS[idx].nombre=nuevoNombre; PRODUCTOS[idx].medidas=nuevasMedidas; PRODUCTOS[idx].marca=nuevaMarca;
   await sb.from('pedido_items').update({nombre:nuevoNombre}).eq('producto_id',id);
   pedidos=pedidos.map(pd=>({...pd,productos:(pd.productos||[]).map(pr=>pr.id===id?{...pr,nombre:nuevoNombre}:pr)}));
   setSyncStatus('online'); construirProductosGrid(); construirImportGrid(); renderCatalogo(); renderPedidos();
@@ -1516,6 +1521,7 @@ function renderCatalogo(){
       '<td style="font-family:var(--mono);color:var(--text-dim)">'+(i+1)+'</td>'+
       '<td id="row-nombre-'+p.id+'"><strong>'+esc(p.nombre)+'</strong></td>'+
       '<td id="row-medidas-'+p.id+'" style="font-size:0.8rem;color:var(--text-muted)">'+(p.medidas?esc(p.medidas):'<span style="color:var(--text-dim)">—</span>')+'</td>'+
+      '<td id="row-marca-'+p.id+'" style="font-size:0.8rem;color:var(--text-muted)">'+(p.marca?esc(p.marca):'<span style="color:var(--text-dim)">—</span>')+'</td>'+
       '<td><span style="font-family:var(--mono);font-size:0.8rem;color:'+(usos>0?'var(--accent)':'var(--text-dim)')+'">'+usos+' pedido'+(usos!==1?'s':'')+'</span></td>'+
       '<td><div class="actions-cell"><button class="btn btn-edit" onclick="editarProducto(\''+p.id+'\')">Editar</button><button class="btn btn-danger" onclick="eliminarProducto(\''+p.id+'\')">Eliminar</button></div></td>'+
       '</tr>';
@@ -1526,7 +1532,8 @@ function editarProducto(id){
   const p=PRODUCTOS.find(x=>x.id===id);if(!p)return;
   const inp=s=>'<input type="text" id="inline-edit-'+s+'-'+id+'" value="'+esc(p[s]||'')+'" style="background:var(--bg);border:1px solid var(--accent);color:var(--text);border-radius:var(--radius-sm);padding:0.35rem 0.6rem;font-family:var(--font);font-size:0.85rem;outline:none;width:100%" onkeydown="if(event.key===\'Enter\')guardarEditProducto(\''+id+'\');if(event.key===\'Escape\')renderCatalogo()"/>';
   document.getElementById('row-nombre-'+id).innerHTML=inp('nombre');
-  document.getElementById('row-medidas-'+id).innerHTML=inp('medidas')+
+  document.getElementById('row-medidas-'+id).innerHTML=inp('medidas');
+  document.getElementById('row-marca-'+id).innerHTML=inp('marca')+
     '<div style="display:flex;gap:0.3rem;margin-top:0.3rem">'+
     '<button class="btn btn-primary" style="padding:0.3rem 0.7rem;font-size:0.75rem" onclick="guardarEditProducto(\''+id+'\')">OK</button>'+
     '<button class="btn btn-ghost" style="padding:0.3rem 0.6rem;font-size:0.75rem" onclick="renderCatalogo()">&#x2715;</button></div>';
