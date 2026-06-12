@@ -317,14 +317,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .mapa-kpi-item{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.7rem 1rem;font-size:0.78rem;color:var(--text-muted);}
 .mapa-kpi-item strong{display:block;font-size:1.3rem;font-family:var(--mono);color:var(--accent);line-height:1.1;}
 .mapa-btn-refresh{margin-left:auto;}
-.import-estado-en_transito{background:rgba(41,128,185,0.13);color:#4a90d9;border-color:rgba(41,128,185,0.3);}
-.import-estado-en_aduana{background:rgba(192,57,43,0.13);color:#c0392b;border-color:rgba(192,57,43,0.3);}
-.import-estado-llegado{background:rgba(39,174,96,0.13);color:#48b87a;border-color:rgba(39,174,96,0.3);}
-.import-estado-distribuido{background:rgba(122,132,148,0.12);color:#64748b;border-color:rgba(122,132,148,0.25);}
-.import-estado-dot-en_transito{background:#4a90d9;}
-.import-estado-dot-en_aduana{background:#c0392b;}
-.import-estado-dot-llegado{background:#48b87a;}
-.import-estado-dot-distribuido{background:#7a8494;}
+.import-estado-en_camino{background:rgba(41,128,185,0.13);color:#4a90d9;border-color:rgba(41,128,185,0.3);}
+.import-estado-en_puerto{background:rgba(192,57,43,0.13);color:#c0392b;border-color:rgba(192,57,43,0.3);}
+.import-estado-entregado{background:rgba(39,174,96,0.13);color:#48b87a;border-color:rgba(39,174,96,0.3);}
+.import-estado-dot-en_camino{background:#4a90d9;}
+.import-estado-dot-en_puerto{background:#c0392b;}
+.import-estado-dot-entregado{background:#48b87a;}
 .mapa-ruta-panel{background:var(--bg-card);border:1px solid rgba(192,57,43,0.45);border-radius:var(--radius-sm);padding:0.75rem 1rem;display:flex;align-items:center;gap:0.9rem;flex-wrap:wrap;}
 .mapa-ruta-origen{font-size:0.78rem;font-weight:600;color:var(--text-muted);}
 .mapa-ruta-destino{font-size:0.88rem;font-weight:700;color:var(--accent);}
@@ -999,7 +997,7 @@ async function cargarDatos() {
       importaciones = rImp.data.map(i=>({
         id:i.id, nombre:i.nombre, proveedor:i.proveedor,
         fechaPedido:i.fecha_pedido, fechaLlegada:i.fecha_llegada,
-        estado:i.estado||'en_transito', comentarios:i.comentarios,
+        estado:i.estado||'en_camino', comentarios:i.comentarios,
         productos:(i.importacion_items||[]).map(it=>({id:it.producto_id,nombre:it.nombre,cantidad:it.cantidad}))
       }));
     }
@@ -2083,14 +2081,13 @@ async function renderMapa() {
 
 // ── IMPORTACIONES ─────────────────────────────────────
 const IMP_ESTADOS = {
-  en_transito: { label:'En tránsito',   cls:'import-estado-en_transito'  },
-  en_aduana:   { label:'En aduana',     cls:'import-estado-en_aduana'    },
-  llegado:     { label:'Llegó al depósito', cls:'import-estado-llegado'  },
-  distribuido: { label:'Distribuido',   cls:'import-estado-distribuido'  }
+  en_camino:  { label:'En camino',  cls:'import-estado-en_camino'  },
+  en_puerto:  { label:'En puerto',  cls:'import-estado-en_puerto'  },
+  entregado:  { label:'Entregado',  cls:'import-estado-entregado'  }
 };
 
 function importBadge(estado) {
-  const c = IMP_ESTADOS[estado] || IMP_ESTADOS.en_transito;
+  const c = IMP_ESTADOS[estado] || IMP_ESTADOS.en_camino;
   return '<span class="estado-badge '+c.cls+'"><span class="estado-dot import-estado-dot-'+estado+'"></span>'+c.label+'</span>';
 }
 
@@ -2133,7 +2130,7 @@ async function guardarImportacion() {
     nombre, proveedor:val('imp-proveedor'),
     fecha_pedido:fechaPedido,
     fecha_llegada:val('imp-fecha-llegada')||null,
-    estado:'en_transito', comentarios:val('imp-comentarios')
+    estado:'en_camino', comentarios:val('imp-comentarios')
   }).select().single();
   if(ie){toast('Error: '+ie.message,true);setSyncStatus('offline');return;}
   const {error:iie}=await sb.from('importacion_items').insert(sel.map(pr=>({importacion_id:imp.id,producto_id:pr.id,nombre:pr.nombre,cantidad:pr.cantidad})));
@@ -2187,7 +2184,7 @@ function renderImportaciones() {
   const esAdmin=usuarioActual?.rol==='admin';
   const puedeEditarEstado=esAdmin||usuarioActual?.rol==='readonly';
   if(!importaciones.length){tbody.innerHTML='<tr class="empty-row"><td colspan="8">No hay importaciones registradas.</td></tr>';return;}
-  const ordenEstados=['en_transito','en_aduana','llegado','distribuido'];
+  const ordenEstados=['en_camino','en_puerto','entregado'];
   tbody.innerHTML=importaciones.map(imp=>{
     const prods=(imp.productos||[]).map(pr=>'<span class="prod-badge">'+esc(pr.nombre)+' &times;'+pr.cantidad+'</span>').join('');
     const btnsCambio=puedeEditarEstado
@@ -2250,7 +2247,7 @@ function renderDashboard() {
   else{dashProx.innerHTML+='<div class="dash-list">'+proximos.map(p=>'<div class="dash-item"><div class="dash-item-left"><div class="dash-item-obra">'+esc(p.obra)+'</div><div class="dash-item-sub">'+formatFecha(p.fecha)+' · '+esc(p.oc)+'</div></div>'+estadoBadge(p.estado||'pendiente')+'</div>').join('')+'</div>';}
 
   // Importaciones activas
-  const impsActivos=importaciones.filter(i=>i.estado!=='distribuido');
+  const impsActivos=importaciones.filter(i=>i.estado!=='entregado');
   const dashImps=document.getElementById('dash-imports');
   dashImps.innerHTML='<div class="dash-section-title"><span style="background:#8e44ad"></span>Importaciones en curso</div>';
   if(!impsActivos.length){dashImps.innerHTML+='<p class="dash-empty">No hay importaciones activas.</p>';}
