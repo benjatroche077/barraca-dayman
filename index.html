@@ -542,6 +542,7 @@ body.compact .kpi-value{font-size:1.6rem;}
             <option value="semana">Esta semana</option>
             <option value="mes">Este mes</option>
           </select>
+          <input type="date" id="filtro-dia" onchange="renderPedidos()" title="Filtrar por día puntual" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:0.4rem 0.6rem;font-size:0.82rem;cursor:pointer"/>
           <button class="btn btn-ghost" onclick="limpiarFiltros()">Limpiar</button>
           <span id="filtro-count" class="badge-count" style="display:none"></span>
         </div>
@@ -1182,7 +1183,7 @@ async function guardarNombreProducto(id) {
 
 // ── STOCK ─────────────────────────────────────────────
 async function guardarStock() {
-  PRODUCTOS.forEach(p=>{const inp=document.getElementById('sc-input-'+p.id);if(inp)stock[p.id]=Math.max(0,parseInt(inp.value)||0);});
+  PRODUCTOS.forEach(p=>{const inp=document.getElementById('sc-input-'+p.id);if(inp)stock[p.id]=Math.max(0,parseFloat(inp.value)||0);});
   setSyncStatus('syncing');
   const {error}=await sb.from('stock').upsert(PRODUCTOS.map(p=>({producto_id:p.id,cantidad:stock[p.id]||0,updated_at:new Date().toISOString()})));
   if(error){toast('Error: '+error.message,true);setSyncStatus('offline');return;}
@@ -1291,13 +1292,15 @@ function renderPedidos(){
   const filtCliente=document.getElementById('filtro-cliente')?.value||'';
   const filtEstado=document.getElementById('filtro-estado')?.value||'';
   const filtFecha=document.getElementById('filtro-fecha')?.value||'';
+  const filtDia=document.getElementById('filtro-dia')?.value||'';
   let lista=[...pedidos].sort((a,b)=>new Date(a.fecha)-new Date(b.fecha));
   if(buscar)lista=lista.filter(p=>(p.obra||'').toLowerCase().includes(buscar)||(p.empresa||'').toLowerCase().includes(buscar)||(p.oc||'').toLowerCase().includes(buscar));
   if(filtCliente)lista=lista.filter(p=>p.clienteId==filtCliente);
   if(filtEstado)lista=lista.filter(p=>(p.estado||'pendiente')===filtEstado);
-  if(filtFecha){const hoy=new Date();hoy.setHours(0,0,0,0);lista=lista.filter(p=>{if(!p.fecha)return false;const[y,m,d]=p.fecha.split('-').map(Number);const fd=new Date(y,m-1,d);if(filtFecha==='hoy')return fd.getTime()===hoy.getTime();if(filtFecha==='semana'){const lun=inicioSemana(hoy);const dom=new Date(lun);dom.setDate(lun.getDate()+6);return fd>=lun&&fd<=dom;}if(filtFecha==='mes')return fd.getFullYear()===hoy.getFullYear()&&fd.getMonth()===hoy.getMonth();return true;});}
+  if(filtDia){lista=lista.filter(p=>p.fecha===filtDia);}
+  else if(filtFecha){const hoy=new Date();hoy.setHours(0,0,0,0);lista=lista.filter(p=>{if(!p.fecha)return false;const[y,m,d]=p.fecha.split('-').map(Number);const fd=new Date(y,m-1,d);if(filtFecha==='hoy')return fd.getTime()===hoy.getTime();if(filtFecha==='semana'){const lun=inicioSemana(hoy);const dom=new Date(lun);dom.setDate(lun.getDate()+6);return fd>=lun&&fd<=dom;}if(filtFecha==='mes')return fd.getFullYear()===hoy.getFullYear()&&fd.getMonth()===hoy.getMonth();return true;});}
   const countEl=document.getElementById('filtro-count');
-  if(countEl){const h=buscar||filtCliente||filtEstado||filtFecha;countEl.style.display=h?'inline-flex':'none';if(h)countEl.textContent=lista.length+' resultado'+(lista.length!==1?'s':'');}
+  if(countEl){const h=buscar||filtCliente||filtEstado||filtFecha||filtDia;countEl.style.display=h?'inline-flex':'none';if(h)countEl.textContent=lista.length+' resultado'+(lista.length!==1?'s':'');}
   if(!lista.length){tbody.innerHTML='<tr class="empty-row"><td colspan="9">'+(pedidos.length?'No hay pedidos que coincidan.':'No hay pedidos registrados aún.')+'</td></tr>';return;}
   tbody.innerHTML=lista.map(p=>{
     const estado=p.estado||'pendiente';
@@ -1329,7 +1332,7 @@ function renderPedidos(){
   }).join('');
 }
 
-function limpiarFiltros(){['filtro-buscar','filtro-cliente','filtro-estado','filtro-fecha'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderPedidos();}
+function limpiarFiltros(){['filtro-buscar','filtro-cliente','filtro-estado','filtro-fecha','filtro-dia'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderPedidos();}
 
 // ── GESTIÓN / HISTORIAL ───────────────────────────────
 function renderGestion(){
@@ -1498,7 +1501,7 @@ function renderStock(){
     const qty=stock[p.id]||0, bajo=qty<=10;
     const controls=esViewer2
       ?'<div style="margin-top:0.8rem;font-family:var(--mono);font-size:0.85rem;color:var(--text-muted)">'+qty+' unidades</div>'
-      :'<div class="stock-controls"><button class="qty-btn" onclick="ajustarStockCard(\''+p.id+'\',-1)">&#x2212;</button><input type="number" min="0" value="'+qty+'" id="sc-input-'+p.id+'" onchange="stockInputChange(\''+p.id+'\',this.value)"/><button class="qty-btn" onclick="ajustarStockCard(\''+p.id+'\',1)">+</button></div>';
+      :'<div class="stock-controls"><button class="qty-btn" onclick="ajustarStockCard(\''+p.id+'\',-1)">&#x2212;</button><input type="number" min="0" step="0.01" value="'+qty+'" id="sc-input-'+p.id+'" onchange="stockInputChange(\''+p.id+'\',this.value)"/><button class="qty-btn" onclick="ajustarStockCard(\''+p.id+'\',1)">+</button></div>';
     const info=proyBadgeInfo(proy[p.id]?.dias??null);
     const proyHtml='<div class="stock-proy">'+
       '<div class="stock-proy-bar"><div class="stock-proy-fill" style="width:'+info.pct+'%;background:'+info.color+'"></div></div>'+
@@ -1541,8 +1544,8 @@ function renderStock(){
   if(banner){if(bajos.length){banner.style.display='flex';banner.innerHTML='<div style="font-size:1.3rem;flex-shrink:0">⚠️</div><div><div class="stock-alerta-titulo">'+bajos.length+' producto'+(bajos.length!==1?'s':'')+' con stock bajo</div><div class="stock-alerta-items">'+bajos.map(p=>esc(p.nombre)+': <strong style="color:var(--danger)">'+(stock[p.id]||0)+'</strong>').join(' &nbsp;·&nbsp; ')+'</div></div>';}else{banner.style.display='none';}}
 }
 
-function ajustarStockCard(id,delta){const inp=document.getElementById('sc-input-'+id);if(!inp)return;const nuevo=Math.max(0,parseInt(inp.value||0)+delta);inp.value=nuevo;stock[id]=nuevo;const qty=document.getElementById('sc-qty-'+id);if(qty)qty.textContent=nuevo;const card=inp.closest('.stock-card');if(card)card.className='stock-card '+(nuevo<=10?'stock-bajo':'stock-ok');}
-function stockInputChange(id,valor){const nuevo=Math.max(0,parseInt(valor)||0);stock[id]=nuevo;const qty=document.getElementById('sc-qty-'+id);if(qty)qty.textContent=nuevo;const inp=document.getElementById('sc-input-'+id);if(inp)inp.value=nuevo;const card=inp?.closest('.stock-card');if(card)card.className='stock-card '+(nuevo<=10?'stock-bajo':'stock-ok');}
+function ajustarStockCard(id,delta){const inp=document.getElementById('sc-input-'+id);if(!inp)return;const nuevo=Math.max(0,parseFloat(inp.value||0)+delta);inp.value=nuevo;stock[id]=nuevo;const qty=document.getElementById('sc-qty-'+id);if(qty)qty.textContent=nuevo;const card=inp.closest('.stock-card');if(card)card.className='stock-card '+(nuevo<=10?'stock-bajo':'stock-ok');}
+function stockInputChange(id,valor){const nuevo=Math.max(0,parseFloat(valor)||0);stock[id]=nuevo;const qty=document.getElementById('sc-qty-'+id);if(qty)qty.textContent=nuevo;const inp=document.getElementById('sc-input-'+id);if(inp)inp.value=nuevo;const card=inp?.closest('.stock-card');if(card)card.className='stock-card '+(nuevo<=10?'stock-bajo':'stock-ok');}
 function verificarAlertaStock(){
   if(!PRODUCTOS.length)return;
   const bajos=PRODUCTOS.filter(p=>(stock[p.id]||0)<=10);if(!bajos.length)return;
@@ -1795,7 +1798,7 @@ function mostrarPreview(csv){const el=document.getElementById('preview-content')
 async function pedirRemitoYCambiarEstado(id){
   const idx=pedidos.findIndex(p=>p.id===id); if(idx===-1)return;
   const {data:rData}=await sb.from('pedidos').select('remito_numero').not('remito_numero','is',null).order('remito_numero',{ascending:false}).limit(1);
-  const numRemito=(rData&&rData.length&&rData[0].remito_numero)?rData[0].remito_numero+1:832;
+  const numRemito=(rData&&rData.length&&rData[0].remito_numero)?rData[0].remito_numero+1:1;
   setSyncStatus('syncing');
   const {error}=await sb.from('pedidos').update({estado:'camino',remito_numero:numRemito}).eq('id',id);
   if(error){toast('Error: '+error.message,true);setSyncStatus('offline');return;}
