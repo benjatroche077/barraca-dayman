@@ -457,7 +457,7 @@ body.compact .kpi-value{font-size:1.6rem;}
 
       <!-- INICIO / DASHBOARD -->
       <section class="tab-content" id="tab-inicio">
-        <div class="section-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.8rem"><div><h2 id="dash-saludo"></h2><p class="section-desc">Resumen del estado actual de la operación.</p></div><button class="btn btn-ghost" onclick="abrirMsgEntregas()">💬 Mensaje entregas</button></div>
+        <div class="section-header"><h2 id="dash-saludo"></h2><p class="section-desc">Resumen del estado actual de la operación.</p></div>
         <div id="dash-kpis" class="kpi-grid" style="margin-bottom:1.4rem"></div>
         <div class="charts-grid" style="margin-bottom:1.4rem">
           <div class="card" style="margin-bottom:0"><div id="dash-hoy"></div></div>
@@ -784,24 +784,6 @@ body.compact .kpi-value{font-size:1.6rem;}
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="document.getElementById('modal-stock-alerta').classList.remove('open')">Cerrar</button>
       <button class="btn btn-primary" onclick="document.getElementById('modal-stock-alerta').classList.remove('open');cambiarTab('stock')">Ver Stock</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL MENSAJE ENTREGAS -->
-<div class="modal-overlay" id="modal-msg-entregas">
-  <div class="modal" style="max-width:540px">
-    <div class="modal-header"><h3>💬 Mensaje de entregas</h3><button class="modal-close" onclick="cerrarMsgEntregas()">&#x2715;</button></div>
-    <div class="modal-body">
-      <div class="form-group" style="margin-bottom:1rem">
-        <label>Fecha de entrega</label>
-        <input type="date" id="msg-fecha" onchange="actualizarMsgEntregas()"/>
-      </div>
-      <textarea id="msg-texto" readonly style="width:100%;min-height:280px;font-family:var(--mono);font-size:0.8rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.8rem;color:var(--text);resize:vertical;line-height:1.6;box-sizing:border-box"></textarea>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="cerrarMsgEntregas()">Cerrar</button>
-      <button class="btn btn-primary" onclick="copiarMsgEntregas()">📋 Copiar</button>
     </div>
   </div>
 </div>
@@ -2482,50 +2464,6 @@ function generarRemitoPDF(pedido,numero){
   },150);
 }
 
-// ── MENSAJE DE ENTREGAS ───────────────────────────────
-function abrirMsgEntregas() {
-  const hoy=new Date();
-  document.getElementById('msg-fecha').value=hoy.toISOString().split('T')[0];
-  actualizarMsgEntregas();
-  document.getElementById('modal-msg-entregas').classList.add('open');
-}
-function cerrarMsgEntregas(){document.getElementById('modal-msg-entregas').classList.remove('open');}
-function actualizarMsgEntregas() {
-  const fecha=document.getElementById('msg-fecha').value;
-  const ta=document.getElementById('msg-texto');
-  if(!fecha){ta.value='';return;}
-  const peds=pedidos.filter(p=>p.fecha===fecha&&p.estado!=='entregado');
-  if(!peds.length){ta.value='No hay pedidos pendientes para esta fecha.';return;}
-  const sep='——————————————————————';
-  const lines=['Entregas coordinadas',''];
-  peds.forEach((p,i)=>{
-    const cl=clientes.find(c=>c.id===p.clienteId);
-    const[y,m,d]=p.fecha.split('-');
-    const fechaStr=d+'/'+m+'/'+y.slice(2);
-    let horaStr='a coordinar';
-    if(p.horaInicio&&p.horaFin)horaStr=p.horaInicio+' - '+p.horaFin;
-    else if(p.horaInicio)horaStr=p.horaInicio;
-    const dir=cl?.direccion||p.obra;
-    const tel=cl?.telefono?' '+cl.telefono:'';
-    lines.push('• Fecha : '+fechaStr);
-    lines.push('• Obra : '+(p.obra||''));
-    lines.push('• Hora : '+horaStr);
-    lines.push('• Dirección : '+dir+tel);
-    lines.push('• Empresa: '+(p.empresa||''));
-    lines.push('');
-    lines.push(sep);
-    lines.push('Orden de compra Nr'+(p.oc||''));
-    (p.productos||[]).forEach(pr=>lines.push('• '+pr.cantidad+' '+pr.nombre));
-    lines.push(sep);
-    if(i<peds.length-1)lines.push('');
-  });
-  ta.value=lines.join('\n');
-}
-function copiarMsgEntregas(){
-  const txt=document.getElementById('msg-texto').value;
-  navigator.clipboard.writeText(txt).then(()=>toast('Mensaje copiado ✓'));
-}
-
 // ── UTILS ─────────────────────────────────────────────
 function val(id){const e=document.getElementById(id);return e?e.value.trim():'';}
 function limpiar(a){a.forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});}
@@ -2540,11 +2478,10 @@ document.getElementById('modal-overlay').addEventListener('click',function(e){if
 document.getElementById('modal-historial').addEventListener('click',function(e){if(e.target===this)cerrarHistorial();});
 document.getElementById('modal-remito').addEventListener('click',function(e){if(e.target===this)cerrarModalRemito();});
 document.getElementById('modal-stock-alerta').addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
-document.getElementById('modal-msg-entregas').addEventListener('click',function(e){if(e.target===this)cerrarMsgEntregas();});
 
 document.addEventListener('keydown',function(e){
   if((e.ctrlKey||e.metaKey)&&e.key==='k'){e.preventDefault();abrirBusqueda();}
-  if(e.key==='Escape'){cerrarBusqueda();cerrarMovimientos();cerrarMsgEntregas();}
+  if(e.key==='Escape'){cerrarBusqueda();cerrarMovimientos();}
 });
 </script>
 </body>
