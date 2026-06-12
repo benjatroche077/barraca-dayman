@@ -975,7 +975,7 @@ async function cargarDatos() {
     if(rS.error) throw rS.error;
     if(rPed.error) throw rPed.error;
     clientes  = rC.data;
-    PRODUCTOS = rP.data.map(p=>({id:p.id,nombre:p.nombre}));
+    PRODUCTOS = rP.data.map(p=>({id:p.id,nombre:p.nombre,medidas:p.medidas||null,marca:p.marca||null}));
     stock={};
     rS.data.forEach(s=>{ stock[s.producto_id]=s.cantidad; });
     pedidos = rPed.data.map(p=>({
