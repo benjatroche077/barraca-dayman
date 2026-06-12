@@ -524,7 +524,10 @@ body.compact .kpi-value{font-size:1.6rem;}
             <div class="resumen-items" id="resumen-items"></div>
           </div>
           <div class="form-group full-width" style="margin-top:1rem"><label>Comentarios</label><textarea id="p-comentarios" rows="2" placeholder="Notas adicionales..."></textarea></div>
-          <div class="form-actions"><button class="btn btn-primary" onclick="guardarPedido()"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Guardar Pedido</button></div>
+          <div class="form-actions" id="pedido-form-actions">
+            <button class="btn btn-ghost" id="btn-cancelar-edicion" style="display:none" onclick="cancelarEdicionPedido()">Cancelar</button>
+            <button class="btn btn-primary" id="btn-guardar-pedido" onclick="guardarPedido()"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg><span id="btn-guardar-texto">Guardar Pedido</span></button>
+          </div>
         </div>
         <div class="section-header" style="margin-top:1rem"><h2>Pedidos Registrados</h2></div>
         <div class="filtros-bar">
@@ -893,6 +896,7 @@ const ROL_CONFIG = {
 const COLORES = ['#c0392b','#48b87a','#4a90d9','#e05555','#9b6fff','#f06a6a','#36c5a0','#e74c3c'];
 
 let clientes=[], pedidos=[], PRODUCTOS=[], stock={}, importaciones=[], auditoria=[];
+let editandoPedidoId=null;
 let mapaInstance=null, routeLayer=null;
 const geocodeCache={};
 let semanaBase=inicioSemana(new Date());
@@ -1045,12 +1049,81 @@ async function eliminarCliente(id) {
 }
 
 // ── PEDIDOS ───────────────────────────────────────────
+function editarPedido(id) {
+  const p=pedidos.find(x=>x.id===id); if(!p)return;
+  editandoPedidoId=id;
+  cambiarTab('pedidos');
+  setTimeout(()=>{
+    document.getElementById('pedidos-titulo').textContent='Editar Pedido';
+    document.getElementById('pedidos-desc').textContent='Modificá los datos del pedido y guardá los cambios.';
+    document.getElementById('btn-guardar-texto').textContent='Actualizar Pedido';
+    document.getElementById('btn-cancelar-edicion').style.display='';
+    const cs=document.getElementById('p-cliente'); if(cs)cs.value=p.clienteId;
+    const fd=document.getElementById('p-fecha'); if(fd)fd.value=p.fecha||'';
+    const oc=document.getElementById('p-oc'); if(oc)oc.value=p.oc||'';
+    const ts=document.getElementById('p-tipo-entrega'); if(ts){ts.value=p.tipoEntrega||'envio';toggleTransportista();}
+    const tr=document.getElementById('p-transportista'); if(tr)tr.value=p.transportista||'';
+    const hi=document.getElementById('p-hora-inicio'); if(hi)hi.value=p.horaInicio||'';
+    const hf=document.getElementById('p-hora-fin'); if(hf)hf.value=p.horaFin||'';
+    const co=document.getElementById('p-comentarios'); if(co)co.value=p.comentarios||'';
+    resetProductos();
+    (p.productos||[]).forEach(pr=>{const inp=document.getElementById('qty-'+pr.id);if(inp)inp.value=pr.cantidad;});
+    actualizarResumen();
+    document.getElementById('form-nuevo-pedido')?.scrollIntoView({behavior:'smooth',block:'start'});
+  },200);
+}
+
+function cancelarEdicionPedido() {
+  editandoPedidoId=null;
+  document.getElementById('pedidos-titulo').textContent='Nuevo Pedido';
+  document.getElementById('pedidos-desc').textContent='Seleccioná un cliente, los productos y completá los datos.';
+  document.getElementById('btn-guardar-texto').textContent='Guardar Pedido';
+  document.getElementById('btn-cancelar-edicion').style.display='none';
+  limpiar(['p-oc','p-comentarios','p-transportista','p-hora-inicio','p-hora-fin']);
+  document.getElementById('p-cliente').value=''; document.getElementById('p-fecha').value='';
+  document.getElementById('p-tipo-entrega').value='envio'; toggleTransportista();
+  resetProductos();
+}
+
 async function guardarPedido() {
   const clienteId=val('p-cliente'),fecha=val('p-fecha'),oc=val('p-oc');
   if(!clienteId||!fecha||!oc){toast('Completá Cliente, Fecha y OC',true);return;}
   const sel=getProductosSeleccionados();
   if(!sel.length){toast('Seleccioná al menos un producto',true);return;}
   const c=clientes.find(x=>x.id==clienteId); if(!c)return;
+
+  // ── MODO EDICIÓN ──
+  if(editandoPedidoId) {
+    const idx=pedidos.findIndex(x=>x.id===editandoPedidoId); if(idx===-1)return;
+    const viejoPed=pedidos[idx];
+    // ajustar stock: devolver lo viejo, descontar lo nuevo
+    const diffStock={};
+    (viejoPed.productos||[]).forEach(pr=>{diffStock[pr.id]=(diffStock[pr.id]||0)+pr.cantidad;});
+    sel.forEach(pr=>{diffStock[pr.id]=(diffStock[pr.id]||0)-pr.cantidad;});
+    // verificar que haya stock suficiente para lo que se agrega
+    const sinStock=sel.filter(pr=>{const libre=(stock[pr.id]||0)+(viejoPed.productos||[]).find(x=>x.id===pr.id)?.cantidad||0;return libre<pr.cantidad;});
+    if(sinStock.length){toast('Stock insuficiente: '+sinStock.map(pr=>pr.nombre).join(', '),true);return;}
+    setSyncStatus('syncing');
+    const tipoEntrega=val('p-tipo-entrega')||'envio';
+    const horaInicio=val('p-hora-inicio')||null, horaFin=val('p-hora-fin')||null;
+    const {error:eu}=await sb.from('pedidos').update({cliente_id:c.id,empresa:c.empresa,obra:c.obra,fecha,oc,transportista:tipoEntrega==='retiro'?null:val('p-transportista'),comentarios:val('p-comentarios'),tipo_entrega:tipoEntrega,hora_inicio:horaInicio,hora_fin:horaFin}).eq('id',editandoPedidoId);
+    if(eu){toast('Error: '+eu.message,true);setSyncStatus('offline');return;}
+    await sb.from('pedido_items').delete().eq('pedido_id',editandoPedidoId);
+    await sb.from('pedido_items').insert(sel.map(pr=>({pedido_id:editandoPedidoId,producto_id:pr.id,nombre:pr.nombre,cantidad:pr.cantidad})));
+    for(const [pid,delta] of Object.entries(diffStock)){
+      stock[pid]=(stock[pid]||0)+delta;
+      await sb.from('stock').upsert({producto_id:pid,cantidad:stock[pid],updated_at:new Date().toISOString()});
+    }
+    pedidos[idx]={...viejoPed,clienteId:c.id,empresa:c.empresa,obra:c.obra,fecha,oc,transportista:tipoEntrega==='retiro'?null:val('p-transportista'),comentarios:val('p-comentarios'),tipoEntrega,horaInicio,horaFin,productos:sel};
+    setSyncStatus('online');
+    registrarAuditoria('actualizar','pedido',editandoPedidoId,'Editó pedido '+oc+' de '+c.obra);
+    toast('Pedido "'+oc+'" actualizado ✓');
+    cancelarEdicionPedido();
+    renderPedidos(); renderCalendario(); verificarAlertaStock();
+    return;
+  }
+
+  // ── MODO CREACIÓN ──
   const sinStock=sel.filter(pr=>(stock[pr.id]||0)<pr.cantidad);
   if(sinStock.length){toast('Stock insuficiente: '+sinStock.map(pr=>pr.nombre+' (hay '+(stock[pr.id]||0)+')').join(', '),true);return;}
   setSyncStatus('syncing');
@@ -1309,7 +1382,7 @@ function renderPedidos(){
       transTd+
       '<td><div class="productos-cell">'+prods+'</div></td>'+
       '<td style="color:var(--text-muted);font-size:0.78rem">'+(esc(p.comentarios)||'&#x2014;')+'</td>'+
-      (esAdmin?'<td><div class="actions-cell"><button class="btn btn-ghost" onclick="copiarPedido('+p.id+')" title="Copiar pedido">📋 Copiar</button><button class="btn btn-danger" onclick="eliminarPedido('+p.id+')">Eliminar</button></div></td>':'')+
+      (esAdmin?'<td><div class="actions-cell"><button class="btn btn-edit" onclick="editarPedido('+p.id+')">Editar</button><button class="btn btn-ghost" onclick="copiarPedido('+p.id+')" title="Copiar pedido">📋 Copiar</button><button class="btn btn-danger" onclick="eliminarPedido('+p.id+')">Eliminar</button></div></td>':'')+
       '</tr>';
   }).join('');
 }
