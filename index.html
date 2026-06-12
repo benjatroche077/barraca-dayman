@@ -1305,7 +1305,7 @@ function construirProductosGrid() {
   const grid=document.getElementById('productos-grid');
   grid.innerHTML=PRODUCTOS.map(p=>
     '<div class="producto-item" id="pi-'+p.id+'">'+
-    '<div class="producto-nombre">'+esc(p.nombre)+(p.medidas?'<div style="font-size:0.68rem;color:var(--text-muted);font-weight:400;margin-top:0.1rem">'+esc(p.medidas)+'</div>':'')+'</div>'+
+    '<div class="producto-nombre">'+esc(p.nombre)+((p.marca||p.medidas)?'<div style="font-size:0.68rem;color:var(--text-muted);font-weight:400;margin-top:0.15rem">'+(p.marca?'<span style="background:rgba(192,57,43,0.1);color:var(--accent);border-radius:3px;padding:0.05rem 0.35rem;margin-right:0.3rem">'+esc(p.marca)+'</span>':'')+(p.medidas?esc(p.medidas):'')+'</div>':'')+'</div>'+
     '<div class="producto-controls">'+
     '<button class="qty-btn" onclick="cambiarQty(\''+p.id+'\',-1)">&#x2212;</button>'+
     '<input class="qty-input" type="number" min="0" value="0" id="qty-'+p.id+'" oninput="actualizarResumen()"/>'+
@@ -2099,7 +2099,7 @@ function construirImportGrid() {
   if (!grid) return;
   grid.innerHTML = PRODUCTOS.map(p=>
     '<div class="producto-item" id="ipi-'+p.id+'">'+
-    '<div class="producto-nombre">'+esc(p.nombre)+(p.medidas?'<div style="font-size:0.68rem;color:var(--text-muted);font-weight:400;margin-top:0.1rem">'+esc(p.medidas)+'</div>':'')+'</div>'+
+    '<div class="producto-nombre">'+esc(p.nombre)+((p.marca||p.medidas)?'<div style="font-size:0.68rem;color:var(--text-muted);font-weight:400;margin-top:0.15rem">'+(p.marca?'<span style="background:rgba(192,57,43,0.1);color:var(--accent);border-radius:3px;padding:0.05rem 0.35rem;margin-right:0.3rem">'+esc(p.marca)+'</span>':'')+(p.medidas?esc(p.medidas):'')+'</div>':'')+'</div>'+
     '<div class="producto-controls">'+
     '<button class="qty-btn" onclick="cambiarImpQty(\''+p.id+'\',-1)">&#x2212;</button>'+
     '<input class="qty-input" type="number" min="0" value="0" id="iqty-'+p.id+'" oninput="actualizarImportResumen()"/>'+
