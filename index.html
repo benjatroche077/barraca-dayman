@@ -791,6 +791,20 @@ body.compact .kpi-value{font-size:1.6rem;}
   </div>
 </div>
 
+<!-- MODAL DETALLE PEDIDO CALENDARIO -->
+<div class="modal-overlay" id="modal-detalle-cal">
+  <div class="modal modal-wide" style="max-width:520px">
+    <div class="modal-header" id="modal-detalle-cal-header">
+      <h3 id="modal-detalle-cal-titulo">Pedido</h3>
+      <button class="modal-close" onclick="document.getElementById('modal-detalle-cal').classList.remove('open')">&#x2715;</button>
+    </div>
+    <div class="modal-body" id="modal-detalle-cal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="document.getElementById('modal-detalle-cal').classList.remove('open')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- PANEL CONFIGURACIÓN -->
 <div class="config-overlay" id="config-overlay" onclick="cerrarConfig()"></div>
 <div class="config-panel" id="config-panel">
@@ -1496,7 +1510,7 @@ function renderCalendario(){
               esRetiro?'🏭 Retiro':'',
               p.comentarios?'💬 '+esc(p.comentarios.slice(0,40))+(p.comentarios.length>40?'…':''):''
             ].filter(Boolean).join(' · ');
-            return '<div class="pedido-chip" style="border-left:3px solid '+ec+'">'+
+            return '<div class="pedido-chip" style="border-left:3px solid '+ec+';cursor:pointer" onclick="verDetallePedidoCal('+p.id+')">'+
               '<span class="pc-obra">'+esc(p.obra)+'</span>'+
               '<span class="pc-empresa">'+esc(p.empresa)+'</span>'+
               '<span class="pc-oc">'+esc(p.oc)+'</span>'+
@@ -1507,6 +1521,40 @@ function renderCalendario(){
       )+'</div>';
     grid.appendChild(col);
   }
+}
+
+// ── DETALLE PEDIDO CALENDARIO ─────────────────────────
+function verDetallePedidoCal(id) {
+  const p=pedidos.find(x=>x.id===id); if(!p)return;
+  const cl=clientes.find(c=>c.id===p.clienteId)||{};
+  const ec={pendiente:'#7a8494',camino:'#4a90d9',entregado:'#48b87a'}[p.estado||'pendiente'];
+  const estadoLabel={pendiente:'Pendiente',camino:'En camino',entregado:'Entregado'}[p.estado||'pendiente'];
+  const esRetiro=(p.tipoEntrega||'envio')==='retiro';
+  const ROW=(lbl,val)=>val?'<div style="display:flex;gap:0.6rem;margin-bottom:0.55rem;font-size:0.85rem"><span style="min-width:120px;color:var(--text-muted);font-size:0.78rem;padding-top:0.05rem">'+lbl+'</span><span style="color:var(--text);font-weight:500">'+val+'</span></div>':'';
+  const header=document.getElementById('modal-detalle-cal-header');
+  header.style.borderBottomColor=ec+'55';
+  document.getElementById('modal-detalle-cal-titulo').innerHTML=
+    '<span>'+esc(p.obra)+'</span>'+
+    '<span class="estado-badge" style="margin-left:0.6rem;background:'+ec+'18;color:'+ec+';border-color:'+ec+'44;font-size:0.72rem">'+estadoLabel+'</span>';
+  const horaStr=p.horaInicio?(p.horaInicio+(p.horaFin?' – '+p.horaFin:'')):null;
+  const prods=(p.productos||[]).map(pr=>
+    '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;border-bottom:1px solid var(--border);font-size:0.83rem">'+
+    '<span>'+esc(pr.nombre)+'</span><span style="font-family:var(--mono);font-weight:700;color:var(--accent)">×'+pr.cantidad+'</span></div>'
+  ).join('');
+  document.getElementById('modal-detalle-cal-body').innerHTML=
+    ROW('Empresa',esc(p.empresa))+
+    ROW('Fecha',formatFecha(p.fecha))+
+    (horaStr?ROW('Hora',horaStr):'')+
+    ROW('Orden de compra',esc(p.oc))+
+    (cl.direccion?ROW('Dirección',esc(cl.direccion)):'')+
+    (cl.nombre?ROW('Contacto',esc(cl.nombre)):'')+
+    (cl.telefono?ROW('Teléfono',esc(cl.telefono)):'')+
+    ROW('Entrega',esRetiro?'🏭 Retiro en depósito':'🚛 Envío a obra')+
+    (!esRetiro&&p.transportista?ROW('Transportista',esc(p.transportista)):'')+
+    (p.remitoNumero!=null?ROW('Remito','B'+p.remitoNumero):'')+
+    (p.comentarios?ROW('Comentarios',esc(p.comentarios)):'')+
+    (prods?'<div style="margin-top:0.8rem"><div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-muted);margin-bottom:0.4rem">Productos</div>'+prods+'</div>':'');
+  document.getElementById('modal-detalle-cal').classList.add('open');
 }
 
 // ── CATÁLOGO ──────────────────────────────────────────
@@ -2574,10 +2622,11 @@ document.getElementById('modal-overlay').addEventListener('click',function(e){if
 document.getElementById('modal-historial').addEventListener('click',function(e){if(e.target===this)cerrarHistorial();});
 document.getElementById('modal-remito').addEventListener('click',function(e){if(e.target===this)cerrarModalRemito();});
 document.getElementById('modal-stock-alerta').addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
+document.getElementById('modal-detalle-cal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
 
 document.addEventListener('keydown',function(e){
   if((e.ctrlKey||e.metaKey)&&e.key==='k'){e.preventDefault();abrirBusqueda();}
-  if(e.key==='Escape'){cerrarBusqueda();cerrarMovimientos();}
+  if(e.key==='Escape'){cerrarBusqueda();cerrarMovimientos();document.getElementById('modal-detalle-cal')?.classList.remove('open');}
 });
 </script>
 </body>
