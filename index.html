@@ -1375,7 +1375,7 @@ function renderPedidos(){
     const vencidoBadge=esVencido?'<span class="vencido-badge">⚠ Vencido</span>':'';
     const prods=(p.productos||[]).map(pr=>'<span class="prod-badge">'+esc(pr.nombre)+' &times;'+pr.cantidad+'</span>').join('');
     const btnEstado=botonesEstado(p.id,estado,esLogistica,esViewer);
-    const remitoThumb=p.remito?'<img src="'+p.remito+'" class="remito-thumb" onclick="verRemito('+p.id+')" title="Ver remito" style="margin-top:0.3rem"/>'+( p.remitoNumero?'<br><button onclick="generarRemitoPDF_byId('+p.id+')" style="font-size:0.68rem;background:none;border:none;color:var(--accent);cursor:pointer;padding:0.1rem 0;margin-top:0.2rem">🖨 Remito #'+p.remitoNumero+'</button>':''):'  ';
+    const remitoThumb=p.remito?'<img src="'+p.remito+'" class="remito-thumb" onclick="verRemito('+p.id+')" title="Ver remito" style="margin-top:0.3rem"/>'+(p.remitoNumero!=null?'<br><button onclick="generarRemitoPDF_byId('+p.id+')" style="font-size:0.68rem;background:none;border:none;color:var(--accent);cursor:pointer;padding:0.1rem 0;margin-top:0.2rem">🖨 Remito B'+p.remitoNumero+'</button>':''):'  ';
     const esRetiro=(p.tipoEntrega||'envio')==='retiro';
     const entregaBadge=esRetiro
       ?'<span style="font-size:0.7rem;background:rgba(41,128,185,0.1);color:#2980b9;border:1px solid rgba(41,128,185,0.3);border-radius:4px;padding:0.15rem 0.5rem;white-space:nowrap">🏭 Retiro</span>'
@@ -1876,14 +1876,14 @@ function mostrarPreview(csv){const el=document.getElementById('preview-content')
 async function pedirRemitoYCambiarEstado(id){
   const idx=pedidos.findIndex(p=>p.id===id); if(idx===-1)return;
   const {data:rData}=await sb.from('pedidos').select('remito_numero').not('remito_numero','is',null).order('remito_numero',{ascending:false}).limit(1);
-  const numRemito=(rData&&rData.length&&rData[0].remito_numero)?rData[0].remito_numero+1:1;
+  const numRemito=(rData&&rData.length&&rData[0].remito_numero!=null)?rData[0].remito_numero+1:0;
   setSyncStatus('syncing');
   const {error}=await sb.from('pedidos').update({estado:'camino',remito_numero:numRemito}).eq('id',id);
   if(error){toast('Error: '+error.message,true);setSyncStatus('offline');return;}
   pedidos[idx].estado='camino'; pedidos[idx].remitoNumero=numRemito;
   setSyncStatus('online'); renderPedidos(); renderCalendario();
-  registrarAuditoria('cambiar','pedido',id,'Marcó en camino — Remito #'+numRemito+': '+pedidos[idx].oc);
-  toast('En camino ✓ — Remito #'+numRemito);
+  registrarAuditoria('cambiar','pedido',id,'Marcó en camino — Remito B'+numRemito+': '+pedidos[idx].oc);
+  toast('En camino ✓ — Remito B'+numRemito);
   enviarWhatsApp(pedidos[idx]);
   generarRemitoPDF(pedidos[idx],numRemito);
 }
@@ -2503,7 +2503,7 @@ function generarRemitoPDF(pedido,numero){
       // Caja REMITO
       +'<div style="border:2px solid #000;padding:10px 20px;text-align:center;min-width:140px">'
         +'<div style="font-weight:bold;font-size:14px;letter-spacing:3px;margin-bottom:6px">REMITO</div>'
-        +'<div style="font-size:28px;font-weight:900;margin-bottom:10px">'+numero+'</div>'
+        +'<div style="font-size:28px;font-weight:900;margin-bottom:10px">B'+numero+'</div>'
         +'<div style="font-size:11px;display:flex;align-items:baseline;gap:6px;justify-content:center">'
           +'<span style="font-weight:bold">Fecha</span>'
           +'<span style="border-bottom:1px solid #000;display:inline-block;min-width:90px;text-align:center">'+fecha+'</span>'
