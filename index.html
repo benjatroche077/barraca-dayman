@@ -1603,12 +1603,13 @@ function renderStock(){
       '<div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:1rem;display:flex;align-items:center;gap:0.5rem">'+
       '<span style="width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0"></span>Proyección de agotamiento — basada en consumo de los últimos 30 días</div>'+
       '<div class="table-wrapper"><table class="proy-table">'+
-      '<thead><tr><th>Producto</th><th>Stock actual</th><th>Consumo 30d</th><th>Tasa diaria</th><th>Días estimados</th></tr></thead>'+
+      '<thead><tr><th>Producto</th><th>Marca</th><th>Stock actual</th><th>Consumo 30d</th><th>Tasa diaria</th><th>Días estimados</th></tr></thead>'+
       '<tbody>'+sorted.map(({p,info})=>{
         const bi=proyBadgeInfo(info.dias);
         const badge='<span class="proy-dias-badge" style="background:'+bi.color+'18;color:'+bi.color+';border-color:'+bi.color+'44">'+bi.label+'</span>';
         return '<tr>'+
           '<td><strong>'+esc(p.nombre)+'</strong></td>'+
+          '<td style="font-size:0.78rem;color:var(--text-muted)">'+(p.marca?esc(p.marca):'<span style="color:var(--text-dim)">—</span>')+'</td>'+
           '<td style="font-family:var(--mono);font-weight:700;color:'+(info.qty<=10?'var(--danger)':'var(--success)')+'">'+info.qty+'</td>'+
           '<td style="font-family:var(--mono)">'+info.c30+'</td>'+
           '<td style="font-family:var(--mono);color:var(--text-muted)">'+info.tasa.toFixed(1)+'/día</td>'+
