@@ -1177,10 +1177,13 @@ async function eliminarPedido(id) {
 async function cambiarEstado(id,nuevoEstado) {
   const idx=pedidos.findIndex(p=>p.id===id); if(idx===-1)return;
   setSyncStatus('syncing');
-  const {error}=await sb.from('pedidos').update({estado:nuevoEstado}).eq('id',id);
+  const upd={estado:nuevoEstado};
+  if(nuevoEstado==='pendiente') upd.remito_numero=null;
+  const {error}=await sb.from('pedidos').update(upd).eq('id',id);
   if(error){toast('Error: '+error.message,true);setSyncStatus('offline');return;}
   const _estadoAnterior=pedidos[idx].estado;
   pedidos[idx].estado=nuevoEstado;
+  if(nuevoEstado==='pendiente') pedidos[idx].remitoNumero=null;
   setSyncStatus('online'); renderPedidos(); renderCalendario();
   registrarAuditoria('cambiar','pedido',id,'Estado pedido '+pedidos[idx].oc+': '+(_estadoAnterior||'pendiente')+' → '+nuevoEstado);
   toast('Estado: '+{pendiente:'Pendiente',camino:'En camino ✓',entregado:'Entregado ✓'}[nuevoEstado]);
