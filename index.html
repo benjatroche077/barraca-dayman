@@ -1266,7 +1266,7 @@ function aplicarPermisos() {
     document.getElementById('btn-'+t).classList.toggle('hidden',!cfg.tabs.includes(t));
   });
   document.getElementById('form-nuevo-pedido').style.display=esAdmin?'':'none';
-  document.getElementById('th-acc-pedidos').style.display=esAdmin?'':'none';
+  document.getElementById('th-acc-pedidos').style.display='';
   if(!esAdmin){
     document.getElementById('pedidos-titulo').innerHTML='Pedidos <span class="readonly-badge">Solo lectura</span>';
     document.getElementById('pedidos-desc').textContent='Consulta de pedidos coordinados.';
@@ -1394,7 +1394,7 @@ function renderPedidos(){
       transTd+
       '<td><div class="productos-cell">'+prods+'</div></td>'+
       '<td style="color:var(--text-muted);font-size:0.78rem">'+(esc(p.comentarios)||'&#x2014;')+'</td>'+
-      (esAdmin?'<td><div class="actions-cell"><button class="btn btn-edit" onclick="editarPedido('+p.id+')">Editar</button><button class="btn btn-ghost" onclick="copiarPedido('+p.id+')" title="Copiar pedido">📋 Copiar</button><button class="btn btn-danger" onclick="eliminarPedido('+p.id+')">Eliminar</button></div></td>':'')+
+      (esAdmin?'<td><div class="actions-cell"><button class="btn btn-edit" onclick="editarPedido('+p.id+')">Editar</button><button class="btn btn-ghost" onclick="copiarPedido('+p.id+')" title="Copiar pedido">📋 Copiar</button><button class="btn btn-ghost" onclick="generarRemitoPDF_byId('+p.id+')" title="Descargar remito">🖨 Remito</button><button class="btn btn-danger" onclick="eliminarPedido('+p.id+')">Eliminar</button></div></td>':'<td><div class="actions-cell"><button class="btn btn-ghost" onclick="generarRemitoPDF_byId('+p.id+')" title="Descargar remito">🖨 Remito</button></div></td>')+
       '</tr>';
   }).join('');
 }
@@ -2482,8 +2482,8 @@ function setCompact(val) {
 
 // ── REMITO PDF ────────────────────────────────────────
 function generarRemitoPDF_byId(id){
-  const p=pedidos.find(x=>x.id===id); if(!p||!p.remitoNumero)return;
-  generarRemitoPDF(p,p.remitoNumero);
+  const p=pedidos.find(x=>x.id===id); if(!p)return;
+  generarRemitoPDF(p,p.remitoNumero!=null?p.remitoNumero:'');
 }
 
 function generarRemitoPDF(pedido,numero){
