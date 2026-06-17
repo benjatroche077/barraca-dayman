@@ -1187,27 +1187,11 @@ async function cambiarEstado(id,nuevoEstado) {
   setSyncStatus('online'); renderPedidos(); renderCalendario();
   registrarAuditoria('cambiar','pedido',id,'Estado pedido '+pedidos[idx].oc+': '+(_estadoAnterior||'pendiente')+' → '+nuevoEstado);
   toast('Estado: '+{pendiente:'Pendiente',camino:'En camino ✓',entregado:'Entregado ✓'}[nuevoEstado]);
-  if(nuevoEstado==='camino') enviarWhatsApp(pedidos[idx]);
 }
 
 // confirmarEnCamino ya no se usa — reemplazado por pedirRemitoYCambiarEstado
 function confirmarEnCamino(){}
 
-function enviarWhatsApp(p) {
-  const cliente=clientes.find(c=>c.id===p.clienteId);
-  if(!cliente||!cliente.telefono){setTimeout(()=>toast('⚠️ Sin teléfono — WhatsApp no enviado',true),800);return;}
-  const tel=limpiarTelefono(cliente.telefono); if(!tel)return;
-  const msg=encodeURIComponent('Estimado/a '+cliente.nombre+', le informamos que su pedido con OC '+p.oc+' correspondiente a la obra '+p.obra+' se encuentra en camino. Barraca Dayman.');
-  setTimeout(()=>window.open('https://wa.me/'+tel+'?text='+msg,'_blank'),400);
-}
-
-function limpiarTelefono(tel) {
-  if(!tel)return null;
-  let t=tel.replace(/[\s\-().+]/g,'');
-  if(t.startsWith('0'))t='598'+t.slice(1);
-  if(t.length<=9)t='598'+t;
-  return t;
-}
 
 // ── CATÁLOGO ──────────────────────────────────────────
 async function agregarProducto() {
@@ -1936,7 +1920,6 @@ async function pedirRemitoYCambiarEstado(id){
   setSyncStatus('online'); renderPedidos(); renderCalendario();
   registrarAuditoria('cambiar','pedido',id,'Marcó en camino — Remito B'+numRemito+': '+pedidos[idx].oc);
   toast('En camino ✓ — Remito B'+numRemito);
-  enviarWhatsApp(pedidos[idx]);
   generarRemitoPDF(pedidos[idx],numRemito);
 }
 function cerrarModalRemito(){document.getElementById('modal-remito')?.classList.remove('open');}
