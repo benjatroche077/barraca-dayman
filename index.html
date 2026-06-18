@@ -1229,7 +1229,8 @@ async function cambiarEstado(id,nuevoEstado) {
   if(error){toast('Error: '+error.message,true);setSyncStatus('offline');return;}
   const _estadoAnterior=pedidos[idx].estado;
   pedidos[idx].estado=nuevoEstado;
-  if(nuevoEstado==='pendiente') pedidos[idx].remitoNumero=null;
+  if(nuevoEstado==='pendiente'){pedidos[idx].remitoNumero=null;limpiarPendientesParciales(id);}
+  if(nuevoEstado==='entregado') limpiarPendientesParciales(id);
   setSyncStatus('online'); renderPedidos(); renderCalendario();
   toast('Estado: '+{pendiente:'Pendiente',camino:'En camino ✓',entregado:'Entregado ✓'}[nuevoEstado]);
 }
@@ -1416,6 +1417,9 @@ function renderPedidos(){
     const hoyV=new Date();hoyV.setHours(0,0,0,0);const isoHoyV=hoyV.toISOString().split('T')[0];
     const esVencido=p.fecha<isoHoyV&&(estado==='pendiente'||estado==='camino');
     const vencidoBadge=esVencido?'<span class="vencido-badge">⚠ Vencido</span>':'';
+    const pendParcial=getPendientesParciales(p.id);
+    const parcialBadge=pendParcial
+      ?'<div style="margin-top:0.35rem;padding:0.3rem 0.5rem;background:rgba(232,168,56,0.12);border:1px solid rgba(232,168,56,0.35);border-radius:5px;font-size:0.7rem;color:#c8850a;font-weight:600">⚠ Envío parcial — pendiente:<br>'+pendParcial.map(x=>'· '+esc(x.nombre)+' ('+x.pendiente+' de '+x.total+')').join('<br>')+'</div>':''
     const prods=(p.productos||[]).map(pr=>'<span class="prod-badge">'+esc(pr.nombre)+' &times;'+pr.cantidad+'</span>').join('');
     const btnEstado=botonesEstado(p.id,estado,esLogistica,esViewer);
     const remitoThumb=p.remito?'<img src="'+p.remito+'" class="remito-thumb" onclick="verRemito('+p.id+')" title="Ver remito" style="margin-top:0.3rem"/>'+(p.remitoNumero!=null?'<br><button onclick="generarRemitoPDF_byId('+p.id+')" style="font-size:0.68rem;background:none;border:none;color:var(--accent);cursor:pointer;padding:0.1rem 0;margin-top:0.2rem">🖨 Remito B'+p.remitoNumero+'</button>':''):'  ';
@@ -1428,7 +1432,7 @@ function renderPedidos(){
       :p.transportista?'<td>'+entregaBadge+'<div style="font-size:0.78rem;margin-top:0.25rem">'+esc(p.transportista)+'</div></td>'
       :'<td>'+entregaBadge+'</td>';
     return '<tr'+(esVencido?' style="background:rgba(231,76,60,0.025)"':'')+'>'+
-      '<td>'+estadoBadge(estado)+vencidoBadge+remitoThumb+(btnEstado?'<div style="margin-top:0.4rem">'+btnEstado+'</div>':'')+'</td>'+
+      '<td>'+estadoBadge(estado)+vencidoBadge+parcialBadge+remitoThumb+(btnEstado?'<div style="margin-top:0.4rem">'+btnEstado+'</div>':'')+'</td>'+
       '<td><strong>'+esc(p.obra)+'</strong></td>'+
       '<td><div style="display:flex;align-items:center">'+grupoIndicador(p.clienteId)+esc(p.empresa)+'</div></td>'+
       '<td style="font-family:var(--mono);color:var(--accent)">'+formatFecha(p.fecha)+(p.horaInicio?'<br><span style="font-size:0.7rem;color:var(--text-muted)">⏰ '+p.horaInicio+(p.horaFin?' – '+p.horaFin:'')+'</span>':'')+'</td>'+
@@ -2004,8 +2008,34 @@ function cerrarModalCarga(){
 
 async function confirmarEnCaminoCarga(){
   if(!_cargaPedidoId)return;
+  const p=pedidos.find(x=>x.id===_cargaPedidoId); if(!p)return;
+  // calcular pendientes
+  const pendientes=(p.productos||[]).map(pr=>{
+    const cargado=parseFloat(document.getElementById('carga-qty-'+pr.id)?.value||0);
+    const restante=pr.cantidad-cargado;
+    return restante>0?{nombre:pr.nombre,cargado,total:pr.cantidad,pendiente:restante}:null;
+  }).filter(Boolean);
+  if(pendientes.length){
+    const key='bd_parciales';
+    let data={};try{data=JSON.parse(localStorage.getItem(key)||'{}');}catch(e){}
+    data[String(_cargaPedidoId)]=pendientes;
+    localStorage.setItem(key,JSON.stringify(data));
+  } else {
+    limpiarPendientesParciales(_cargaPedidoId);
+  }
   await cambiarEstado(_cargaPedidoId,'camino');
   cerrarModalCarga();
+}
+
+function limpiarPendientesParciales(id){
+  const key='bd_parciales';
+  let data={};try{data=JSON.parse(localStorage.getItem(key)||'{}');}catch(e){}
+  delete data[String(id)];
+  localStorage.setItem(key,JSON.stringify(data));
+}
+
+function getPendientesParciales(id){
+  try{const data=JSON.parse(localStorage.getItem('bd_parciales')||'{}');return data[String(id)]||null;}catch(e){return null;}
 }
 
 async function emitirRemitoPedido(id){
