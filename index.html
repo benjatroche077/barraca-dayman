@@ -792,6 +792,25 @@ body.compact .kpi-value{font-size:1.6rem;}
   </div>
 </div>
 
+<!-- MODAL CARGA CAMIÓN -->
+<div class="modal-overlay" id="modal-carga-camion">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <h3>🚛 Confirmar carga del camión</h3>
+      <button class="modal-close" onclick="cerrarModalCarga()">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.2rem">Indicá la cantidad que sale en este viaje para cada producto.</p>
+      <div id="carga-productos"></div>
+      <div id="carga-estado" style="margin-top:1rem;padding:0.8rem 1rem;border-radius:var(--radius-sm);font-size:0.85rem;font-weight:600;text-align:center"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="cerrarModalCarga()">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirmar-carga" onclick="confirmarEnCaminoCarga()">🚛 Confirmar En camino</button>
+    </div>
+  </div>
+</div>
+
 <!-- PANEL CONFIGURACIÓN -->
 <div class="config-overlay" id="config-overlay" onclick="cerrarConfig()"></div>
 <div class="config-panel" id="config-panel">
@@ -1364,13 +1383,14 @@ function estadoBadge(estado){const cfg={pendiente:{cls:'estado-pendiente',dot:'#
 function botonesEstado(id,estadoActual,esLogistica,esViewer){
   if(esViewer) return '';
   if(esLogistica){
-    if(estadoActual==='pendiente')return '<button class="estado-btn btn-camino" onclick="cambiarEstado('+id+',\'camino\')">🚛 En camino</button>';
+    if(estadoActual==='pendiente')return '<button class="estado-btn btn-camino" onclick="abrirModalCarga('+id+')">🚛 En camino</button>';
     if(estadoActual==='camino')return '<span style="font-size:0.72rem;color:var(--text-dim)">Esperando confirmación</span>';
     return '';
   }
   const opts={pendiente:'Pendiente',camino:'En camino',entregado:'Entregado'};
   return Object.entries(opts).filter(([k])=>k!==estadoActual).map(([k,lbl])=>{
-    return '<button class="estado-btn btn-'+k+'" onclick="cambiarEstado('+id+',\''+k+'\')">'+lbl+'</button>';
+    const fn=k==='camino'?'abrirModalCarga('+id+')':'cambiarEstado('+id+',\''+k+'\')';
+    return '<button class="estado-btn btn-'+k+'" onclick="'+fn+'">'+lbl+'</button>';
   }).join('');
 }
 
@@ -1938,6 +1958,56 @@ function descargarCSV(csv,nombre){const a=document.createElement('a');a.href=URL
 function mostrarPreview(csv){const el=document.getElementById('preview-content');el.textContent=csv;el.style.display='block';document.getElementById('preview-hint').style.display='none';}
 
 // ── REMITO ────────────────────────────────────────────
+// ── MODAL CARGA CAMIÓN ────────────────────────────────
+let _cargaPedidoId=null;
+
+function abrirModalCarga(id){
+  const p=pedidos.find(x=>x.id===id); if(!p)return;
+  _cargaPedidoId=id;
+  const prods=p.productos||[];
+  document.getElementById('carga-productos').innerHTML=prods.map(pr=>'<div style="display:flex;align-items:center;gap:0.8rem;padding:0.6rem 0;border-bottom:1px solid var(--border)">'+
+    '<span style="flex:1;font-size:0.85rem">'+esc(pr.nombre)+'</span>'+
+    '<span style="font-size:0.75rem;color:var(--text-muted);min-width:70px;text-align:right">Pedido: <strong>'+pr.cantidad+'</strong></span>'+
+    '<input type="number" min="0" max="'+pr.cantidad+'" value="'+pr.cantidad+'" id="carga-qty-'+pr.id+'" style="width:64px;text-align:center;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:0.3rem;font-family:var(--mono);font-size:0.9rem" oninput="actualizarEstadoCarga()"/>'+
+    '</div>'
+  ).join('');
+  actualizarEstadoCarga();
+  document.getElementById('modal-carga-camion').classList.add('open');
+}
+
+function actualizarEstadoCarga(){
+  const p=pedidos.find(x=>x.id===_cargaPedidoId); if(!p)return;
+  const prods=p.productos||[];
+  let completo=true, hayAlgo=false;
+  prods.forEach(pr=>{
+    const v=parseFloat(document.getElementById('carga-qty-'+pr.id)?.value||0);
+    if(v>0)hayAlgo=true;
+    if(v<pr.cantidad)completo=false;
+  });
+  const el=document.getElementById('carga-estado');
+  if(completo&&hayAlgo){
+    el.style.cssText='margin-top:1rem;padding:0.8rem 1rem;border-radius:var(--radius-sm);font-size:0.85rem;font-weight:600;text-align:center;background:rgba(39,174,96,0.12);color:#27ae60;border:1px solid rgba(39,174,96,0.3)';
+    el.textContent='✅ Carga completa — todo el pedido sale en este viaje';
+  } else if(hayAlgo){
+    el.style.cssText='margin-top:1rem;padding:0.8rem 1rem;border-radius:var(--radius-sm);font-size:0.85rem;font-weight:600;text-align:center;background:rgba(232,168,56,0.12);color:#c8850a;border:1px solid rgba(232,168,56,0.3)';
+    el.textContent='⚠️ Carga parcial — quedan productos sin despachar';
+  } else {
+    el.style.cssText='margin-top:1rem;padding:0.8rem 1rem;border-radius:var(--radius-sm);font-size:0.85rem;font-weight:600;text-align:center;background:rgba(231,76,60,0.08);color:var(--danger);border:1px solid rgba(231,76,60,0.2)';
+    el.textContent='❌ No hay nada cargado';
+  }
+}
+
+function cerrarModalCarga(){
+  document.getElementById('modal-carga-camion').classList.remove('open');
+  _cargaPedidoId=null;
+}
+
+async function confirmarEnCaminoCarga(){
+  if(!_cargaPedidoId)return;
+  await cambiarEstado(_cargaPedidoId,'camino');
+  cerrarModalCarga();
+}
+
 async function emitirRemitoPedido(id){
   const idx=pedidos.findIndex(p=>p.id===id); if(idx===-1)return;
   let numRemito=pedidos[idx].remitoNumero;
@@ -2623,10 +2693,11 @@ document.getElementById('modal-historial').addEventListener('click',function(e){
 document.getElementById('modal-remito').addEventListener('click',function(e){if(e.target===this)cerrarModalRemito();});
 document.getElementById('modal-stock-alerta').addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
 document.getElementById('modal-detalle-cal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
+document.getElementById('modal-carga-camion').addEventListener('click',function(e){if(e.target===this)cerrarModalCarga();});
 
 document.addEventListener('keydown',function(e){
   if((e.ctrlKey||e.metaKey)&&e.key==='k'){e.preventDefault();abrirBusqueda();}
-  if(e.key==='Escape'){cerrarBusqueda();cerrarMovimientos();document.getElementById('modal-detalle-cal')?.classList.remove('open');}
+  if(e.key==='Escape'){cerrarBusqueda();cerrarMovimientos();document.getElementById('modal-detalle-cal')?.classList.remove('open');cerrarModalCarga();}
 });
 </script>
 </body>
