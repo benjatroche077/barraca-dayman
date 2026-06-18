@@ -1419,7 +1419,7 @@ function renderPedidos(){
     const vencidoBadge=esVencido?'<span class="vencido-badge">⚠ Vencido</span>':'';
     const pendParcial=getPendientesParciales(p.id);
     const parcialBadge=pendParcial
-      ?'<div style="margin-top:0.35rem;padding:0.3rem 0.5rem;background:rgba(232,168,56,0.12);border:1px solid rgba(232,168,56,0.35);border-radius:5px;font-size:0.7rem;color:#c8850a;font-weight:600">⚠ Envío parcial — pendiente:<br>'+pendParcial.map(x=>'· '+esc(x.nombre)+' ('+x.pendiente+' de '+x.total+')').join('<br>')+'</div>':''
+      ?'<div onclick="crearPedidoRestante('+p.id+')" style="margin-top:0.35rem;padding:0.3rem 0.5rem;background:rgba(232,168,56,0.12);border:1px solid rgba(232,168,56,0.35);border-radius:5px;font-size:0.7rem;color:#c8850a;font-weight:600;cursor:pointer" title="Tocar para generar pedido con lo restante">⚠ Envío parcial — pendiente:<br>'+pendParcial.map(x=>'· '+esc(x.nombre)+' ('+x.pendiente+' de '+x.total+')').join('<br>')+'<br><span style="font-size:0.68rem;text-decoration:underline;opacity:0.8">Tocar para generar pedido con lo restante</span></div>':''
     const prods=(p.productos||[]).map(pr=>'<span class="prod-badge">'+esc(pr.nombre)+' &times;'+pr.cantidad+'</span>').join('');
     const btnEstado=botonesEstado(p.id,estado,esLogistica,esViewer);
     const remitoThumb=p.remito?'<img src="'+p.remito+'" class="remito-thumb" onclick="verRemito('+p.id+')" title="Ver remito" style="margin-top:0.3rem"/>'+(p.remitoNumero!=null?'<br><button onclick="generarRemitoPDF_byId('+p.id+')" style="font-size:0.68rem;background:none;border:none;color:var(--accent);cursor:pointer;padding:0.1rem 0;margin-top:0.2rem">🖨 Remito B'+p.remitoNumero+'</button>':''):'  ';
@@ -2025,6 +2025,39 @@ async function confirmarEnCaminoCarga(){
   }
   await cambiarEstado(_cargaPedidoId,'camino');
   cerrarModalCarga();
+}
+
+async function crearPedidoRestante(originalId){
+  const orig=pedidos.find(x=>x.id===originalId); if(!orig)return;
+  const pendientes=getPendientesParciales(originalId); if(!pendientes||!pendientes.length)return;
+  if(!confirm('¿Crear un nuevo pedido con los '+pendientes.length+' producto(s) restante(s) de la OC '+orig.oc+'?'))return;
+  // Armar lista de productos restantes
+  const prodsPendientes=pendientes.map(x=>{
+    const prod=orig.productos?.find(pr=>pr.nombre===x.nombre)||{id:'',nombre:x.nombre};
+    return {id:prod.id,nombre:x.nombre,cantidad:x.pendiente};
+  });
+  setSyncStatus('syncing');
+  // Crear pedido sin tocar stock (ya fue descontado en el original)
+  const {data:pd,error:pe}=await sb.from('pedidos').insert({
+    cliente_id:orig.clienteId,empresa:orig.empresa,obra:orig.obra,
+    fecha:orig.fecha,oc:orig.oc,
+    transportista:orig.transportista||null,
+    comentarios:(orig.comentarios?orig.comentarios+' — ':'')+'Restante de envío parcial',
+    estado:'pendiente',tipo_entrega:orig.tipoEntrega||'envio',
+    hora_inicio:orig.horaInicio||null,hora_fin:orig.horaFin||null
+  }).select().single();
+  if(pe){toast('Error: '+pe.message,true);setSyncStatus('offline');return;}
+  await sb.from('pedido_items').insert(prodsPendientes.map(pr=>({pedido_id:pd.id,producto_id:pr.id,nombre:pr.nombre,cantidad:pr.cantidad})));
+  pedidos.push({id:pd.id,clienteId:orig.clienteId,empresa:orig.empresa,obra:orig.obra,
+    fecha:orig.fecha,oc:orig.oc,transportista:orig.transportista||null,
+    comentarios:(orig.comentarios?orig.comentarios+' — ':'')+'Restante de envío parcial',
+    estado:'pendiente',tipoEntrega:orig.tipoEntrega||'envio',
+    horaInicio:orig.horaInicio||null,horaFin:orig.horaFin||null,
+    productos:prodsPendientes});
+  limpiarPendientesParciales(originalId);
+  setSyncStatus('online');
+  renderPedidos(); renderCalendario();
+  toast('Pedido restante creado con OC '+orig.oc+' ✓');
 }
 
 function limpiarPendientesParciales(id){
