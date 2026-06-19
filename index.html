@@ -1437,9 +1437,11 @@ async function guardarStock() {
 
 // ── PERMISOS ──────────────────────────────────────────
 function aplicarPermisos() {
-  const rol=usuarioActual.rol, cfg=ROL_CONFIG[rol], esAdmin=rol==='admin';
+  const rol=usuarioActual?.rol||'readonly';
+  const cfg=ROL_CONFIG[rol]||ROL_CONFIG['readonly'];
+  const esAdmin=rol==='admin';
   ['inicio','clientes','pedidos','calendario','gestion','analisis','catalogo','stock','exportar','mapa','importaciones','obras','cotizaciones'].forEach(t=>{
-    document.getElementById('btn-'+t).classList.toggle('hidden',!cfg.tabs.includes(t));
+    document.getElementById('btn-'+t)?.classList.toggle('hidden',!cfg.tabs.includes(t));
   });
   const esOperador=rol==='operador';
   document.getElementById('form-nuevo-pedido').style.display=esAdmin?'':'none';
@@ -1459,12 +1461,12 @@ function aplicarPermisos() {
 
 function cambiarTab(tab) {
   if(!usuarioActual)return;
-  const cfg=ROL_CONFIG[usuarioActual.rol];
+  const cfg=ROL_CONFIG[usuarioActual.rol]||ROL_CONFIG['readonly'];
   if(!cfg.tabs.includes(tab))return;
   document.querySelectorAll('.sidebar-btn').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active'));
-  document.getElementById('btn-'+tab).classList.add('active');
-  document.getElementById('tab-'+tab).classList.add('active');
+  document.getElementById('btn-'+tab)?.classList.add('active');
+  document.getElementById('tab-'+tab)?.classList.add('active');
   if(tab==='calendario')renderCalendario();
   if(tab==='gestion')renderGestion();
   if(tab==='pedidos'){actualizarSelectClientes();renderPedidos();}
