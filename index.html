@@ -1035,6 +1035,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const ROL_CONFIG = {
   admin:    { tabs:['inicio','clientes','pedidos','calendario','gestion','analisis','catalogo','stock','exportar','mapa','importaciones','obras','cotizaciones'], inicio:'inicio' },
+  operador: { tabs:['inicio','pedidos','calendario','catalogo','stock','importaciones'], inicio:'inicio' },
   readonly: { tabs:['inicio','pedidos','calendario','stock','mapa','importaciones'], inicio:'inicio' },
   viewer:   { tabs:['inicio','pedidos','calendario','gestion','analisis','stock','exportar','mapa','importaciones'], inicio:'inicio' }
 };
@@ -1438,14 +1439,18 @@ function aplicarPermisos() {
   ['inicio','clientes','pedidos','calendario','gestion','analisis','catalogo','stock','exportar','mapa','importaciones','obras','cotizaciones'].forEach(t=>{
     document.getElementById('btn-'+t).classList.toggle('hidden',!cfg.tabs.includes(t));
   });
+  const esOperador=rol==='operador';
   document.getElementById('form-nuevo-pedido').style.display=esAdmin?'':'none';
   document.getElementById('th-acc-pedidos').style.display='';
-  if(!esAdmin){
-    document.getElementById('pedidos-titulo').innerHTML='Pedidos <span class="readonly-badge">Solo lectura</span>';
-    document.getElementById('pedidos-desc').textContent='Consulta de pedidos coordinados.';
-  } else {
+  if(esAdmin){
     document.getElementById('pedidos-titulo').textContent='Nuevo Pedido';
     document.getElementById('pedidos-desc').textContent='Seleccioná un cliente, los productos y completá los datos.';
+  } else if(esOperador){
+    document.getElementById('pedidos-titulo').textContent='Pedidos';
+    document.getElementById('pedidos-desc').textContent='Consultá y gestioná el estado de los pedidos.';
+  } else {
+    document.getElementById('pedidos-titulo').innerHTML='Pedidos <span class="readonly-badge">Solo lectura</span>';
+    document.getElementById('pedidos-desc').textContent='Consulta de pedidos coordinados.';
   }
   actualizarRecientes(); actualizarSelectClientes(); renderPedidos(); renderGestion(); renderCalendario();
 }
@@ -1528,7 +1533,8 @@ function botonesEstado(id,estadoActual,esLogistica,esViewer){
 
 function renderPedidos(){
   const tbody=document.getElementById('body-pedidos');
-  const esAdmin=usuarioActual?.rol==='admin', esLogistica=usuarioActual?.rol==='readonly', esViewer=usuarioActual?.rol==='viewer';
+  const rol=usuarioActual?.rol;
+  const esAdmin=rol==='admin', esLogistica=rol==='readonly', esViewer=rol==='viewer', esOperador=rol==='operador';
   const buscar=(document.getElementById('filtro-buscar')?.value||'').toLowerCase().trim();
   const filtCliente=document.getElementById('filtro-cliente')?.value||'';
   const filtEstado=document.getElementById('filtro-estado')?.value||'';
@@ -2508,7 +2514,7 @@ async function eliminarImportacion(id) {
 function renderImportaciones() {
   const tbody=document.getElementById('body-importaciones'); if(!tbody)return;
   const esAdmin=usuarioActual?.rol==='admin';
-  const puedeEditarEstado=esAdmin||usuarioActual?.rol==='readonly';
+  const puedeEditarEstado=esAdmin||usuarioActual?.rol==='readonly'||usuarioActual?.rol==='operador';
   if(!importaciones.length){tbody.innerHTML='<tr class="empty-row"><td colspan="8">No hay importaciones registradas.</td></tr>';return;}
   const ordenEstados=['en_camino','en_puerto','entregado'];
   tbody.innerHTML=importaciones.map(imp=>{
