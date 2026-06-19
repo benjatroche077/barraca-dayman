@@ -1110,25 +1110,17 @@ async function cerrarSesion() {
 async function cargarDatos() {
   setSyncStatus('syncing');
   try {
-    const [rGrupos,rFichas,rObras,rCots,rCotItems,rC,rP,rS,rPed,rImp] = await Promise.all([
-      sb.from('grupos').select('*').order('nombre'),
-      sb.from('fichas_tecnicas').select('*'),
-      sb.from('obras').select('*').order('fecha_creacion'),
-      sb.from('cotizaciones').select('*').order('fecha_creacion',{ascending:false}),
-      sb.from('cotizacion_items').select('*'),
+    // ── Datos esenciales (deben existir) ──
+    const [rC,rP,rS,rPed] = await Promise.all([
       sb.from('clientes').select('*').order('id'),
       sb.from('productos').select('*').order('orden'),
       sb.from('stock').select('*'),
-      sb.from('pedidos').select('*, pedido_items(*)').order('fecha'),
-      sb.from('importaciones').select('*, importacion_items(*)').order('fecha_pedido',{ascending:false})
+      sb.from('pedidos').select('*, pedido_items(*)').order('fecha')
     ]);
-    grupos = rGrupos.data||[];
-    fichasTecnicas={};
-    (rFichas.data||[]).forEach(f=>{fichasTecnicas[f.producto_id]={tipo:f.tipo,nombre:f.nombre,data:f.data};});
-    obras=(rObras.data||[]).map(o=>({id:o.id,nombre:o.nombre,clienteId:o.cliente_id,direccion:o.direccion,bloquesEstimados:o.bloques_estimados,estado:o.estado||'activa',fechaInicio:o.fecha_inicio,notas:o.notas,fechaCreacion:o.fecha_creacion}));
-    const itemsByCot={};
-    (rCotItems.data||[]).forEach(it=>{if(!itemsByCot[it.cotizacion_id])itemsByCot[it.cotizacion_id]=[];itemsByCot[it.cotizacion_id].push({productoId:it.producto_id,productoNombre:it.producto_nombre,palletEstimados:it.pallet_estimados,m3PorPallet:it.m3_por_pallet,precioPorM3:it.precio_por_m3});});
-    cotizaciones=(rCots.data||[]).map(c=>({id:c.id,numero:c.numero,grupoEconomicoId:c.grupo_economico_id,clienteId:c.cliente_id,obraId:c.obra_id,totalGeneral:c.total_general,estado:c.estado||'borrador',notas:c.notas,fechaCreacion:c.fecha_creacion,fechaEnvio:c.fecha_envio,items:itemsByCot[c.id]||[]}));
+    if(rC.error) throw rC.error;
+    if(rP.error) throw rP.error;
+    if(rS.error) throw rS.error;
+    if(rPed.error) throw rPed.error;
     clientes=rC.data||[];
     PRODUCTOS=(rP.data||[]).map(p=>({id:p.id,nombre:p.nombre,medidas:p.medidas||null,marca:p.marca||null}));
     stock={};(rS.data||[]).forEach(s=>{stock[s.producto_id]=s.cantidad;});
@@ -1142,29 +1134,39 @@ async function cargarDatos() {
       itemsParciales:p.items_parciales||null,
       productos:(p.pedido_items||[]).map(it=>({id:it.producto_id,nombre:it.nombre,cantidad:it.cantidad}))
     }));
-    importaciones=(rImp.data||[]).map(i=>({
-      id:i.id,nombre:i.nombre,proveedor:i.proveedor,
-      fechaPedido:i.fecha_pedido,fechaLlegada:i.fecha_llegada||null,
-      estado:i.estado||'en_camino',comentarios:i.comentarios,
-      productos:(i.importacion_items||[]).map(it=>({id:it.producto_id,nombre:it.nombre,cantidad:it.cantidad}))
-    }));
     setSyncStatus('online');
   } catch(e) {
     setSyncStatus('offline');
     toast('Error cargando datos: '+e.message, true);
   }
-  // Importaciones — tabla separada, carga independiente para no romper app si no existe aún
+  // ── Datos opcionales (tablas nuevas — no rompen la app si no existen aún) ──
   try {
-    const rImp = await sb.from('importaciones').select('*, importacion_items(*)').order('created_at',{ascending:false});
-    if (!rImp.error) {
-      importaciones = rImp.data.map(i=>({
-        id:i.id, nombre:i.nombre, proveedor:i.proveedor,
-        fechaPedido:i.fecha_pedido, fechaLlegada:i.fecha_llegada,
-        estado:i.estado||'en_camino', comentarios:i.comentarios,
-        productos:(i.importacion_items||[]).map(it=>({id:it.producto_id,nombre:it.nombre,cantidad:it.cantidad}))
-      }));
+    const rImp = await sb.from('importaciones').select('*, importacion_items(*)').order('fecha_pedido',{ascending:false});
+    if(!rImp.error) importaciones=(rImp.data||[]).map(i=>({id:i.id,nombre:i.nombre,proveedor:i.proveedor,fechaPedido:i.fecha_pedido,fechaLlegada:i.fecha_llegada||null,estado:i.estado||'en_camino',comentarios:i.comentarios,productos:(i.importacion_items||[]).map(it=>({id:it.producto_id,nombre:it.nombre,cantidad:it.cantidad}))}));
+  } catch(e){}
+  try {
+    const rG = await sb.from('grupos').select('*').order('nombre');
+    if(!rG.error) grupos=rG.data||[];
+  } catch(e){}
+  try {
+    const rF = await sb.from('fichas_tecnicas').select('*');
+    if(!rF.error){fichasTecnicas={};(rF.data||[]).forEach(f=>{fichasTecnicas[f.producto_id]={tipo:f.tipo,nombre:f.nombre,data:f.data};});}
+  } catch(e){}
+  try {
+    const rO = await sb.from('obras').select('*').order('fecha_creacion');
+    if(!rO.error) obras=(rO.data||[]).map(o=>({id:o.id,nombre:o.nombre,clienteId:o.cliente_id,direccion:o.direccion,bloquesEstimados:o.bloques_estimados,estado:o.estado||'activa',fechaInicio:o.fecha_inicio,notas:o.notas,fechaCreacion:o.fecha_creacion}));
+  } catch(e){}
+  try {
+    const [rCots,rCotItems] = await Promise.all([
+      sb.from('cotizaciones').select('*').order('fecha_creacion',{ascending:false}),
+      sb.from('cotizacion_items').select('*')
+    ]);
+    if(!rCots.error&&!rCotItems.error){
+      const itemsByCot={};
+      (rCotItems.data||[]).forEach(it=>{if(!itemsByCot[it.cotizacion_id])itemsByCot[it.cotizacion_id]=[];itemsByCot[it.cotizacion_id].push({productoId:it.producto_id,productoNombre:it.producto_nombre,palletEstimados:it.pallet_estimados,m3PorPallet:it.m3_por_pallet,precioPorM3:it.precio_por_m3});});
+      cotizaciones=(rCots.data||[]).map(c=>({id:c.id,numero:c.numero,grupoEconomicoId:c.grupo_economico_id,clienteId:c.cliente_id,obraId:c.obra_id,totalGeneral:c.total_general,estado:c.estado||'borrador',notas:c.notas,fechaCreacion:c.fecha_creacion,fechaEnvio:c.fecha_envio,items:itemsByCot[c.id]||[]}));
     }
-  } catch(e) {}
+  } catch(e){}
 }
 
 // ── GRUPOS DE EMPRESAS ────────────────────────────────
