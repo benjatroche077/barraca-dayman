@@ -622,7 +622,7 @@ body.compact .kpi-value{font-size:1.6rem;}
         </div>
         <div class="card">
           <div class="table-wrapper">
-            <table class="data-table"><thead><tr><th>#</th><th>Nombre</th><th>Medidas</th><th>Marca</th><th>En pedidos</th><th>Ficha</th><th>Acciones</th></tr></thead><tbody id="body-catalogo"></tbody></table>
+            <table class="data-table"><thead><tr><th>#</th><th>Nombre</th><th>Medidas</th><th>Marca</th><th>M³/Pallet</th><th>U/Pallet</th><th>En pedidos</th><th>Ficha</th><th>Acciones</th></tr></thead><tbody id="body-catalogo"></tbody></table>
           </div>
         </div>
       </section>
@@ -1474,13 +1474,18 @@ async function guardarEditProducto(id) {
   if(!nuevoNombre){toast('El nombre no puede estar vacío',true);return;}
   if(PRODUCTOS.some(p=>p.id!==id&&p.nombre.toLowerCase()===nuevoNombre.toLowerCase())){toast('Ya existe ese nombre',true);return;}
   const inpMarca=document.getElementById('inline-edit-marca-'+id);
+  const inpM3=document.getElementById('inline-edit-m3-'+id);
+  const inpU=document.getElementById('inline-edit-u-'+id);
   const nuevasMedidas=inpM?inpM.value.trim()||null:null;
   const nuevaMarca=inpMarca?inpMarca.value.trim()||null:null;
+  const nuevoM3=inpM3?parseFloat(inpM3.value)||null:null;
+  const nuevasU=inpU?parseInt(inpU.value)||null:null;
   setSyncStatus('syncing');
-  const {error}=await sb.from('productos').update({nombre:nuevoNombre,medidas:nuevasMedidas,marca:nuevaMarca}).eq('id',id);
+  const {error}=await sb.from('productos').update({nombre:nuevoNombre,medidas:nuevasMedidas,marca:nuevaMarca,m3_por_pallet:nuevoM3,unidades_por_pallet:nuevasU}).eq('id',id);
   if(error){toast('Error: '+error.message,true);setSyncStatus('offline');return;}
   const idx=PRODUCTOS.findIndex(x=>x.id===id);
   PRODUCTOS[idx].nombre=nuevoNombre; PRODUCTOS[idx].medidas=nuevasMedidas; PRODUCTOS[idx].marca=nuevaMarca;
+  PRODUCTOS[idx].m3PorPallet=nuevoM3; PRODUCTOS[idx].unidadesPorPallet=nuevasU;
   await sb.from('pedido_items').update({nombre:nuevoNombre}).eq('producto_id',id);
   pedidos=pedidos.map(pd=>({...pd,productos:(pd.productos||[]).map(pr=>pr.id===id?{...pr,nombre:nuevoNombre}:pr)}));
   setSyncStatus('online'); construirProductosGrid(); construirImportGrid(); renderCatalogo(); renderPedidos();
@@ -1814,6 +1819,8 @@ function renderCatalogo(){
       '<td id="row-nombre-'+p.id+'"><strong>'+esc(p.nombre)+'</strong></td>'+
       '<td id="row-medidas-'+p.id+'" style="font-size:0.8rem;color:var(--text-muted)">'+(p.medidas?esc(p.medidas):'<span style="color:var(--text-dim)">—</span>')+'</td>'+
       '<td id="row-marca-'+p.id+'" style="font-size:0.8rem;color:var(--text-muted)">'+(p.marca?esc(p.marca):'<span style="color:var(--text-dim)">—</span>')+'</td>'+
+      '<td id="row-m3-'+p.id+'" style="font-family:var(--mono);font-size:0.8rem;text-align:center">'+(p.m3PorPallet!=null&&p.m3PorPallet>0?p.m3PorPallet:'<span style="color:var(--text-dim)">—</span>')+'</td>'+
+      '<td id="row-u-'+p.id+'" style="font-family:var(--mono);font-size:0.8rem;text-align:center">'+(p.unidadesPorPallet>0?p.unidadesPorPallet:'<span style="color:var(--text-dim)">—</span>')+'</td>'+
       '<td><span style="font-family:var(--mono);font-size:0.8rem;color:'+(usos>0?'var(--accent)':'var(--text-dim)')+'">'+usos+' pedido'+(usos!==1?'s':'')+'</span></td>'+
       '<td><div class="actions-cell">'+fichaBtn+'</div></td>'+
       '<td><div class="actions-cell"><button class="btn btn-edit" onclick="editarProducto(\''+p.id+'\')">Editar</button><button class="btn btn-danger" onclick="eliminarProducto(\''+p.id+'\')">Eliminar</button></div></td>'+
@@ -1823,10 +1830,12 @@ function renderCatalogo(){
 
 function editarProducto(id){
   const p=PRODUCTOS.find(x=>x.id===id);if(!p)return;
-  const inp=s=>'<input type="text" id="inline-edit-'+s+'-'+id+'" value="'+esc(p[s]||'')+'" style="background:var(--bg);border:1px solid var(--accent);color:var(--text);border-radius:var(--radius-sm);padding:0.35rem 0.6rem;font-family:var(--font);font-size:0.85rem;outline:none;width:100%" onkeydown="if(event.key===\'Enter\')guardarEditProducto(\''+id+'\');if(event.key===\'Escape\')renderCatalogo()"/>';
-  document.getElementById('row-nombre-'+id).innerHTML=inp('nombre');
-  document.getElementById('row-medidas-'+id).innerHTML=inp('medidas');
-  document.getElementById('row-marca-'+id).innerHTML=inp('marca')+
+  const inpT=(s,tipo,val)=>'<input type="'+tipo+'" id="inline-edit-'+s+'-'+id+'" value="'+esc(String(val??''))+'" step="any" style="background:var(--bg);border:1px solid var(--accent);color:var(--text);border-radius:var(--radius-sm);padding:0.35rem 0.5rem;font-family:var(--mono);font-size:0.82rem;outline:none;width:100%" onkeydown="if(event.key===\'Enter\')guardarEditProducto(\''+id+'\');if(event.key===\'Escape\')renderCatalogo()"/>';
+  document.getElementById('row-nombre-'+id).innerHTML=inpT('nombre','text',p.nombre);
+  document.getElementById('row-medidas-'+id).innerHTML=inpT('medidas','text',p.medidas||'');
+  document.getElementById('row-marca-'+id).innerHTML=inpT('marca','text',p.marca||'');
+  document.getElementById('row-m3-'+id).innerHTML=inpT('m3','number',p.m3PorPallet||'');
+  document.getElementById('row-u-'+id).innerHTML=inpT('u','number',p.unidadesPorPallet||'')+
     '<div style="display:flex;gap:0.3rem;margin-top:0.3rem">'+
     '<button class="btn btn-primary" style="padding:0.3rem 0.7rem;font-size:0.75rem" onclick="guardarEditProducto(\''+id+'\')">OK</button>'+
     '<button class="btn btn-ghost" style="padding:0.3rem 0.6rem;font-size:0.75rem" onclick="renderCatalogo()">&#x2715;</button></div>';
