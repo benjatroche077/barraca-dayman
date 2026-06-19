@@ -3223,41 +3223,6 @@ function exportarCotGenPDF(){
 let _cotItemCount=0, _cotConvertirId=null;
 function nextCotNumero(){const n=cotizaciones.length+1;return 'COT-'+String(n).padStart(4,'0');}
 
-function renderCotizaciones(){
-  const tbody=document.getElementById('body-cotizaciones'); if(!tbody)return;
-  // poblar filtro grupos
-  const gSel=document.getElementById('cot-filtro-grupo');
-  if(gSel){const cur=gSel.value;gSel.innerHTML='<option value="">Todos los grupos</option>'+grupos.map(g=>'<option value="'+g.id+'"'+(g.id===cur?' selected':'')+'>'+esc(g.nombre)+'</option>').join('');}
-  const filtEst=document.getElementById('cot-filtro-estado')?.value||'';
-  const filtGrp=document.getElementById('cot-filtro-grupo')?.value||'';
-  let lista=cotizaciones;
-  if(filtEst)lista=lista.filter(c=>c.estado===filtEst);
-  if(filtGrp)lista=lista.filter(c=>c.grupoEconomicoId===filtGrp);
-  if(!lista.length){tbody.innerHTML='<tr class="empty-row"><td colspan="7">No hay cotizaciones que coincidan.</td></tr>';return;}
-  tbody.innerHTML=[...lista].reverse().map(c=>{
-    const cl=clientes.find(x=>x.id==c.clienteId);
-    const ob=cl;
-    const g=grupos.find(x=>x.id===c.grupoEconomicoId);
-    const dot=g?'<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+g.color+';margin-right:5px"></span>':'';
-    const eCls=c.estado==='enviada'?'estado-camino':'estado-pendiente';
-    const eLbl=c.estado==='enviada'?'Enviada':'Borrador';
-    return '<tr>'+
-      '<td style="font-family:var(--mono);font-weight:700">'+esc(c.numero)+'</td>'+
-      '<td>'+dot+(cl?esc(cl.empresa):'—')+'</td>'+
-      '<td style="font-size:0.8rem;color:var(--text-muted)">'+(ob?esc(ob.obra):'—')+'</td>'+
-      '<td style="font-family:var(--mono);font-weight:700;color:var(--accent)">$'+Number(c.totalGeneral||0).toLocaleString('es-UY')+'</td>'+
-      '<td><span class="estado-badge '+eCls+'"><span class="estado-dot"></span>'+eLbl+'</span></td>'+
-      '<td style="font-family:var(--mono);font-size:0.78rem">'+(c.fechaCreacion||'—')+'</td>'+
-      '<td><div class="actions-cell">'+
-        (c.estado==='borrador'?'<button class="btn btn-edit" onclick="abrirModalCotizacion(\''+c.id+'\')">Editar</button>':'')+
-        (c.estado==='borrador'?'<button class="btn btn-ghost" onclick="marcarCotEnviada(\''+c.id+'\')" style="font-size:0.74rem">Enviar</button>':'')+
-        '<button class="btn btn-ghost" onclick="exportarCotPDF(\''+c.id+'\')" style="font-size:0.74rem">🖨 PDF</button>'+
-        '<button class="btn btn-ghost" onclick="abrirConvertirPedido(\''+c.id+'\')" style="font-size:0.74rem">→ Pedido</button>'+
-        '<button class="btn btn-danger" onclick="eliminarCotizacion(\''+c.id+'\')">Eliminar</button>'+
-      '</div></td>'+
-      '</tr>';
-  }).join('');
-}
 
 function abrirModalCotizacion(id){
   const c=id?cotizaciones.find(x=>x.id===id):null;
