@@ -477,9 +477,12 @@ body.compact .kpi-value{font-size:1.6rem;}
           <div class="form-grid">
             <div class="form-group"><label>Empresa <span class="required">*</span></label><input type="text" id="c-empresa" placeholder="Ej: Constructora Norte SA"/></div>
             <div class="form-group"><label>Obra <span class="required">*</span></label><input type="text" id="c-obra" placeholder="Ej: Edificio Torres del Sol"/></div>
+            <div class="form-group"><label>RUT / CI</label><input type="text" id="c-rut" placeholder="Ej: 21836504-0016"/></div>
+            <div class="form-group"><label>Email</label><input type="email" id="c-email" placeholder="Ej: contacto@empresa.com"/></div>
             <div class="form-group"><label>Dirección</label><input type="text" id="c-direccion" placeholder="Ej: Av. Principal 1234"/></div>
             <div class="form-group"><label>Teléfono</label><input type="tel" id="c-telefono" placeholder="Ej: 099 123 456"/></div>
-            <div class="form-group full-width"><label>Nombre de Contacto <span class="required">*</span></label><input type="text" id="c-nombre" placeholder="Ej: Juan Pérez"/></div>
+            <div class="form-group"><label>Precio U$D / m³ <span class="required">*</span></label><input type="number" min="0" step="0.01" id="c-precio-m3" placeholder="Ej: 85.00"/></div>
+            <div class="form-group"><label>Nombre de Contacto <span class="required">*</span></label><input type="text" id="c-nombre" placeholder="Ej: Juan Pérez"/></div>
             <div class="form-group full-width"><label>Grupo de Empresa</label><div style="display:flex;gap:0.5rem"><select id="c-grupo" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:0.45rem 0.6rem;font-size:0.85rem"><option value="">Sin grupo</option></select><input type="text" id="c-grupo-nuevo" placeholder="Nuevo grupo..." style="flex:1"/><button type="button" class="btn btn-ghost" onclick="crearGrupoDesdeForm()">+ Crear</button></div></div>
           </div>
           <div class="form-actions"><button class="btn btn-primary" onclick="guardarCliente()"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Guardar Cliente</button></div>
@@ -609,9 +612,11 @@ body.compact .kpi-value{font-size:1.6rem;}
         <div class="section-header"><h2>Catálogo de Productos</h2><p class="section-desc">Agregá, editá o eliminá los productos disponibles.</p></div>
         <div class="card">
           <div style="display:flex;align-items:flex-end;gap:0.8rem;flex-wrap:wrap">
-            <div class="form-group" style="flex:1;min-width:220px"><label>Nombre del Producto <span class="required">*</span></label><input type="text" id="np-nombre" placeholder="Ej: Pallet Bloques 20"/></div>
-            <div class="form-group" style="flex:1;min-width:160px"><label>Medidas</label><input type="text" id="np-medidas" placeholder="Ej: 20x40x20 cm"/></div>
-            <div class="form-group" style="flex:1;min-width:140px"><label>Marca</label><input type="text" id="np-marca" placeholder="Ej: Losa"/></div>
+            <div class="form-group" style="flex:1;min-width:200px"><label>Nombre del Producto <span class="required">*</span></label><input type="text" id="np-nombre" placeholder="Ej: Pallet Bloques 20"/></div>
+            <div class="form-group" style="flex:1;min-width:130px"><label>Medidas</label><input type="text" id="np-medidas" placeholder="Ej: 20x40x20 cm"/></div>
+            <div class="form-group" style="flex:1;min-width:110px"><label>Marca</label><input type="text" id="np-marca" placeholder="Ej: Losa"/></div>
+            <div class="form-group" style="flex:1;min-width:110px"><label>M³ / pallet</label><input type="number" min="0" step="0.001" id="np-m3" placeholder="Ej: 1.152"/></div>
+            <div class="form-group" style="flex:1;min-width:110px"><label>Unid. / pallet</label><input type="number" min="0" id="np-unidades" placeholder="Ej: 96"/></div>
             <button class="btn btn-primary" onclick="agregarProducto()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Agregar</button>
           </div>
         </div>
@@ -717,25 +722,75 @@ body.compact .kpi-value{font-size:1.6rem;}
 
       <!-- COTIZACIONES -->
       <section class="tab-content" id="tab-cotizaciones">
-        <div class="section-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.8rem">
-          <div><h2>Cotizaciones</h2><p class="section-desc">Generá y gestioná cotizaciones para tus clientes.</p></div>
-          <button class="btn btn-primary" onclick="abrirModalCotizacion()"><svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Nueva Cotización</button>
+        <div class="section-header"><h2>Generador de Cotización</h2><p class="section-desc">Seleccioná un cliente y armá la cotización.</p></div>
+
+        <!-- Paso 1: Cliente -->
+        <div class="card" style="margin-bottom:1rem">
+          <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+            <div class="form-group" style="flex:2;min-width:220px;margin-bottom:0">
+              <label>Cliente</label>
+              <select id="cot-gen-cliente" onchange="cotGenClienteChange()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:0.45rem 0.6rem;font-size:0.85rem;width:100%">
+                <option value="">— Seleccioná un cliente —</option>
+              </select>
+            </div>
+            <div style="flex:1;min-width:160px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.6rem 1rem">
+              <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em">Precio U$D / m³</div>
+              <div style="font-size:1.3rem;font-weight:900;font-family:var(--mono);color:var(--accent)" id="cot-gen-precio-display">—</div>
+            </div>
+            <div style="flex:1;min-width:160px">
+              <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.3rem">N° Cotización</div>
+              <div style="font-size:1rem;font-weight:700;font-family:var(--mono)" id="cot-gen-numero">—</div>
+            </div>
+          </div>
         </div>
+
+        <!-- Paso 2-3: Productos -->
+        <div class="card" style="margin-bottom:1rem">
+          <div class="table-wrapper">
+            <table class="data-table" id="cot-gen-tabla">
+              <thead><tr><th>Descripción</th><th>Medidas</th><th>U/Pallet</th><th>M³/Pallet</th><th>Precio U$D/m³</th><th>Precio x Pallet</th><th>Pallets</th><th>Total U$D</th></tr></thead>
+              <tbody id="cot-gen-body"><tr class="empty-row"><td colspan="8">Seleccioná un cliente para ver los productos.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Paso 4-5: Totales + Datos -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+          <div class="card" style="margin-bottom:0">
+            <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-muted);margin-bottom:0.8rem">Totales</div>
+            <div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid var(--border);font-size:0.85rem"><span>Subtotal sin IVA</span><span style="font-family:var(--mono);font-weight:700" id="cot-subtotal">U$D 0.00</span></div>
+            <div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid var(--border);font-size:0.85rem;color:var(--text-muted)"><span>IVA 22%</span><span style="font-family:var(--mono)" id="cot-iva">U$D 0.00</span></div>
+            <div style="display:flex;justify-content:space-between;padding:0.6rem 0;font-size:1rem;font-weight:700"><span>Total General</span><span style="font-family:var(--mono);color:var(--accent)" id="cot-total">U$D 0.00</span></div>
+          </div>
+          <div class="card" style="margin-bottom:0">
+            <div class="form-grid" style="grid-template-columns:1fr 1fr">
+              <div class="form-group"><label>Fecha</label><input type="date" id="cot-gen-fecha"/></div>
+              <div class="form-group"><label>Validez</label><input type="text" id="cot-gen-validez" placeholder="Ej: 30 días"/></div>
+              <div class="form-group full-width"><label>Observaciones</label><textarea id="cot-gen-obs" rows="2" placeholder="Condiciones, notas..."></textarea></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:0.8rem;justify-content:flex-end;margin-bottom:1.4rem">
+          <button class="btn btn-ghost" onclick="limpiarCotGen()">Limpiar</button>
+          <button class="btn btn-ghost" onclick="guardarCotGen()">💾 Guardar</button>
+          <button class="btn btn-primary" onclick="exportarCotGenPDF()">🖨 Generar PDF</button>
+        </div>
+
+        <!-- Historial -->
+        <div class="section-header" style="margin-top:0.5rem"><h2>Cotizaciones guardadas</h2></div>
         <div class="filtros-bar" style="margin-bottom:1rem">
           <select id="cot-filtro-estado" onchange="renderCotizaciones()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:0.4rem 0.6rem;font-size:0.82rem">
             <option value="">Todos los estados</option>
             <option value="borrador">Borrador</option>
             <option value="enviada">Enviada</option>
           </select>
-          <select id="cot-filtro-grupo" onchange="renderCotizaciones()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:0.4rem 0.6rem;font-size:0.82rem">
-            <option value="">Todos los grupos</option>
-          </select>
         </div>
         <div class="card">
           <div class="table-wrapper">
             <table class="data-table">
-              <thead><tr><th>Número</th><th>Empresa</th><th>Obra</th><th>Total</th><th>Estado</th><th>Fecha</th><th>Acciones</th></tr></thead>
-              <tbody id="body-cotizaciones"><tr class="empty-row"><td colspan="7">No hay cotizaciones registradas.</td></tr></tbody>
+              <thead><tr><th>Número</th><th>Empresa / Obra</th><th>Subtotal</th><th>IVA</th><th>Total</th><th>Estado</th><th>Fecha</th><th>Acciones</th></tr></thead>
+              <tbody id="body-cotizaciones"><tr class="empty-row"><td colspan="8">No hay cotizaciones guardadas.</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -754,9 +809,12 @@ body.compact .kpi-value{font-size:1.6rem;}
       <div class="form-grid">
         <div class="form-group"><label>Empresa</label><input type="text" id="edit-empresa"/></div>
         <div class="form-group"><label>Obra</label><input type="text" id="edit-obra"/></div>
+        <div class="form-group"><label>RUT / CI</label><input type="text" id="edit-rut"/></div>
+        <div class="form-group"><label>Email</label><input type="email" id="edit-email"/></div>
         <div class="form-group"><label>Dirección</label><input type="text" id="edit-direccion"/></div>
         <div class="form-group"><label>Teléfono</label><input type="tel" id="edit-telefono"/></div>
-        <div class="form-group full-width"><label>Nombre de Contacto</label><input type="text" id="edit-nombre"/></div>
+        <div class="form-group"><label>Precio U$D / m³</label><input type="number" min="0" step="0.01" id="edit-precio-m3"/></div>
+        <div class="form-group"><label>Nombre de Contacto</label><input type="text" id="edit-nombre"/></div>
         <div class="form-group full-width"><label>Grupo de Empresa</label><select id="edit-grupo" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:0.45rem 0.6rem;font-size:0.85rem;width:100%"><option value="">Sin grupo</option></select></div>
       </div>
     </div>
@@ -1122,7 +1180,7 @@ async function cargarDatos() {
     if(rS.error) throw rS.error;
     if(rPed.error) throw rPed.error;
     clientes=rC.data||[];
-    PRODUCTOS=(rP.data||[]).map(p=>({id:p.id,nombre:p.nombre,medidas:p.medidas||null,marca:p.marca||null}));
+    PRODUCTOS=(rP.data||[]).map(p=>({id:p.id,nombre:p.nombre,medidas:p.medidas||null,marca:p.marca||null,m3PorPallet:p.m3_por_pallet||null,unidadesPorPallet:p.unidades_por_pallet||null}));
     stock={};(rS.data||[]).forEach(s=>{stock[s.producto_id]=s.cantidad;});
     pedidos=(rPed.data||[]).map(p=>({
       id:p.id,clienteId:p.cliente_id,empresa:p.empresa,obra:p.obra,
@@ -1205,11 +1263,12 @@ async function guardarCliente() {
   if(!empresa||!obra||!nombre){toast('Completá Empresa, Obra y Contacto',true);return;}
   setSyncStatus('syncing');
   const grupoId=document.getElementById('c-grupo')?.value||null;
-  const {data,error}=await sb.from('clientes').insert({empresa,obra,direccion:val('c-direccion'),telefono:val('c-telefono'),nombre,grupo_id:grupoId||null}).select().single();
+  const precioM3=parseFloat(document.getElementById('c-precio-m3')?.value)||null;
+  const {data,error}=await sb.from('clientes').insert({empresa,obra,rut:val('c-rut')||null,email:val('c-email')||null,direccion:val('c-direccion'),telefono:val('c-telefono'),nombre,grupo_id:grupoId||null,precio_usd_m3:precioM3}).select().single();
   if(error){toast('Error: '+error.message,true);setSyncStatus('offline');return;}
   clientes.push(data);
   setSyncStatus('online');
-  limpiar(['c-empresa','c-obra','c-direccion','c-telefono','c-nombre']);
+  limpiar(['c-empresa','c-obra','c-rut','c-email','c-direccion','c-telefono','c-nombre','c-precio-m3']);
   if(document.getElementById('c-grupo'))document.getElementById('c-grupo').value='';
   actualizarRecientes(); actualizarSelectClientes();
   toast('Cliente "'+obra+'" guardado ✓');
@@ -1219,7 +1278,7 @@ async function guardarEdicion() {
   const id=parseInt(document.getElementById('edit-id').value);
   const idx=clientes.findIndex(c=>c.id===id); if(idx===-1)return;
   const grupoId=document.getElementById('edit-grupo')?.value||null;
-  const upd={empresa:document.getElementById('edit-empresa').value.trim(),obra:document.getElementById('edit-obra').value.trim(),direccion:document.getElementById('edit-direccion').value.trim(),telefono:document.getElementById('edit-telefono').value.trim(),nombre:document.getElementById('edit-nombre').value.trim(),grupo_id:grupoId||null};
+  const upd={empresa:document.getElementById('edit-empresa').value.trim(),obra:document.getElementById('edit-obra').value.trim(),rut:document.getElementById('edit-rut').value.trim()||null,email:document.getElementById('edit-email').value.trim()||null,direccion:document.getElementById('edit-direccion').value.trim(),telefono:document.getElementById('edit-telefono').value.trim(),nombre:document.getElementById('edit-nombre').value.trim(),grupo_id:grupoId||null,precio_usd_m3:parseFloat(document.getElementById('edit-precio-m3').value)||null};
   setSyncStatus('syncing');
   const {error}=await sb.from('clientes').update(upd).eq('id',id);
   if(error){toast('Error: '+error.message,true);setSyncStatus('offline');return;}
@@ -1377,16 +1436,20 @@ async function agregarProducto() {
   if(PRODUCTOS.some(p=>p.nombre.toLowerCase()===nombre.toLowerCase())){toast('Ya existe ese producto',true);return;}
   const medidas=val('np-medidas')||null;
   const marca=val('np-marca')||null;
+  const m3PorPallet=parseFloat(document.getElementById('np-m3')?.value)||null;
+  const unidadesPorPallet=parseInt(document.getElementById('np-unidades')?.value)||null;
   const id='prod_'+Date.now();
   setSyncStatus('syncing');
-  const {error:pe}=await sb.from('productos').insert({id,nombre,medidas,marca,orden:PRODUCTOS.length+1});
+  const {error:pe}=await sb.from('productos').insert({id,nombre,medidas,marca,m3_por_pallet:m3PorPallet,unidades_por_pallet:unidadesPorPallet,orden:PRODUCTOS.length+1});
   if(pe){toast('Error: '+pe.message,true);setSyncStatus('offline');return;}
   await sb.from('stock').insert({producto_id:id,cantidad:0});
-  PRODUCTOS.push({id,nombre,medidas,marca}); stock[id]=0;
+  PRODUCTOS.push({id,nombre,medidas,marca,m3PorPallet,unidadesPorPallet}); stock[id]=0;
   setSyncStatus('online');
   document.getElementById('np-nombre').value='';
   document.getElementById('np-medidas').value='';
   document.getElementById('np-marca').value='';
+  if(document.getElementById('np-m3'))document.getElementById('np-m3').value='';
+  if(document.getElementById('np-unidades'))document.getElementById('np-unidades').value='';
   construirProductosGrid(); construirImportGrid(); renderCatalogo();
   toast('Producto "'+nombre+'" agregado ✓');
 }
@@ -1476,7 +1539,7 @@ function cambiarTab(tab) {
   if(tab==='mapa'){renderMapa();setTimeout(()=>{if(mapaInstance)mapaInstance.invalidateSize();},120);}
   if(tab==='importaciones')renderImportaciones();
   if(tab==='obras')renderObras();
-  if(tab==='cotizaciones')renderCotizaciones();
+  if(tab==='cotizaciones'){renderCotizaciones();const fd=document.getElementById('cot-gen-fecha');if(fd&&!fd.value)fd.value=new Date().toISOString().split('T')[0];document.getElementById('cot-gen-numero').textContent=nextCotNumero();}
   if(tab==='inicio')renderDashboard();
 }
 
@@ -1646,6 +1709,9 @@ function abrirEdicion(id){
   document.getElementById('edit-direccion').value=c.direccion||'';
   document.getElementById('edit-telefono').value=c.telefono||'';
   document.getElementById('edit-nombre').value=c.nombre;
+  document.getElementById('edit-rut').value=c.rut||'';
+  document.getElementById('edit-email').value=c.email||'';
+  document.getElementById('edit-precio-m3').value=c.precio_usd_m3||'';
   poblarSelectGrupos('edit-grupo', c.grupo_id||'');
   document.getElementById('modal-overlay').classList.add('open');
 }
@@ -2931,6 +2997,226 @@ async function eliminarObra(id){
   const {error}=await sb.from('obras').delete().eq('id',id);
   if(error){toast('Error: '+error.message,true);return;}
   obras=obras.filter(x=>x.id!==id); renderObras(); toast('Obra eliminada');
+}
+
+// ── GENERADOR DE COTIZACIÓN ───────────────────────────
+function renderCotizaciones(){
+  // poblar selector de cliente del generador
+  const sel=document.getElementById('cot-gen-cliente');
+  if(sel){const cur=sel.value;sel.innerHTML='<option value="">— Seleccioná un cliente —</option>'+clientes.map(c=>'<option value="'+c.id+'"'+(c.id==cur?' selected':'')+'>'+esc(c.empresa)+' — '+esc(c.obra)+'</option>').join('');}
+  // historial
+  const tbody=document.getElementById('body-cotizaciones');if(!tbody)return;
+  const filtEst=document.getElementById('cot-filtro-estado')?.value||'';
+  let lista=filtEst?cotizaciones.filter(c=>c.estado===filtEst):[...cotizaciones];
+  lista=[...lista].reverse();
+  if(!lista.length){tbody.innerHTML='<tr class="empty-row"><td colspan="8">No hay cotizaciones guardadas.</td></tr>';return;}
+  tbody.innerHTML=lista.map(c=>{
+    const cl=clientes.find(x=>x.id==c.clienteId);
+    const eCls=c.estado==='enviada'?'estado-camino':'estado-pendiente';
+    const fmt=v=>'U$D '+(Number(v||0).toLocaleString('es-UY',{minimumFractionDigits:2,maximumFractionDigits:2}));
+    return '<tr>'+
+      '<td style="font-family:var(--mono);font-weight:700">'+esc(c.numero)+'</td>'+
+      '<td>'+(cl?esc(cl.empresa)+'<br><span style="font-size:0.75rem;color:var(--text-muted)">'+esc(cl.obra)+'</span>':'—')+'</td>'+
+      '<td style="font-family:var(--mono);font-size:0.8rem">'+fmt(c.subtotal)+'</td>'+
+      '<td style="font-family:var(--mono);font-size:0.8rem;color:var(--text-muted)">'+fmt(c.iva)+'</td>'+
+      '<td style="font-family:var(--mono);font-weight:700;color:var(--accent)">'+fmt(c.totalGeneral)+'</td>'+
+      '<td><span class="estado-badge '+eCls+'"><span class="estado-dot"></span>'+(c.estado==='enviada'?'Enviada':'Borrador')+'</span></td>'+
+      '<td style="font-family:var(--mono);font-size:0.78rem">'+(c.fechaCreacion||'—')+'</td>'+
+      '<td><div class="actions-cell">'+
+        '<button class="btn btn-ghost" style="font-size:0.74rem" onclick="cargarCotEnGenerador(\''+c.id+'\')">Editar</button>'+
+        (c.estado==='borrador'?'<button class="btn btn-ghost" style="font-size:0.74rem" onclick="marcarCotEnviada(\''+c.id+'\')" >Enviar</button>':'')+
+        '<button class="btn btn-ghost" style="font-size:0.74rem" onclick="exportarCotPDF(\''+c.id+'\')">🖨 PDF</button>'+
+        '<button class="btn btn-danger" onclick="eliminarCotizacion(\''+c.id+'\')">Eliminar</button>'+
+      '</div></td>'+
+      '</tr>';
+  }).join('');
+}
+
+function cotGenClienteChange(){
+  const cid=document.getElementById('cot-gen-cliente').value;
+  const cl=clientes.find(c=>c.id==cid);
+  const precio=cl?.precio_usd_m3||null;
+  document.getElementById('cot-gen-precio-display').textContent=precio?'U$D '+Number(precio).toFixed(2):'—';
+  cotGenRenderProductos(precio);
+}
+
+function cotGenRenderProductos(precioM3){
+  const tbody=document.getElementById('cot-gen-body');
+  const precio=parseFloat(precioM3)||0;
+  if(!PRODUCTOS.length){tbody.innerHTML='<tr class="empty-row"><td colspan="8">No hay productos en el catálogo.</td></tr>';return;}
+  tbody.innerHTML=PRODUCTOS.map(p=>{
+    const m3=p.m3PorPallet||0;
+    const u=p.unidadesPorPallet||0;
+    const precioPallet=precio*m3;
+    return '<tr id="cot-row-prod-'+p.id+'">'+
+      '<td><strong>'+esc(p.nombre)+'</strong></td>'+
+      '<td style="font-size:0.78rem;color:var(--text-muted)">'+esc(p.medidas||'—')+'</td>'+
+      '<td style="font-family:var(--mono);text-align:center">'+( u||'—')+'</td>'+
+      '<td style="font-family:var(--mono);text-align:center">'+( m3?m3.toFixed(3):'—')+'</td>'+
+      '<td style="font-family:var(--mono);text-align:center">'+( precio?'U$D '+precio.toFixed(2):'—')+'</td>'+
+      '<td style="font-family:var(--mono);text-align:center" id="cot-precioPallet-'+p.id+'">'+( precioPallet?'U$D '+precioPallet.toFixed(2):'—')+'</td>'+
+      '<td><input type="number" min="0" value="0" id="cot-pallets-'+p.id+'" style="width:64px;text-align:center;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:0.3rem;font-family:var(--mono);font-size:0.9rem" oninput="cotGenRecalcular()"/></td>'+
+      '<td style="font-family:var(--mono);font-weight:700;color:var(--accent);text-align:right" id="cot-total-'+p.id+'">U$D 0.00</td>'+
+      '</tr>';
+  }).join('');
+  cotGenRecalcular();
+}
+
+function cotGenRecalcular(){
+  const cid=document.getElementById('cot-gen-cliente').value;
+  const cl=clientes.find(c=>c.id==cid);
+  const precioM3=parseFloat(cl?.precio_usd_m3)||0;
+  let subtotal=0;
+  PRODUCTOS.forEach(p=>{
+    const m3=p.m3PorPallet||0;
+    const pallets=parseFloat(document.getElementById('cot-pallets-'+p.id)?.value||0);
+    const precioPallet=precioM3*m3;
+    const total=precioPallet*pallets;
+    subtotal+=total;
+    const te=document.getElementById('cot-total-'+p.id);
+    if(te)te.textContent='U$D '+total.toFixed(2);
+  });
+  const iva=subtotal*0.22;
+  const total=subtotal+iva;
+  const fmt=v=>'U$D '+v.toLocaleString('es-UY',{minimumFractionDigits:2,maximumFractionDigits:2});
+  document.getElementById('cot-subtotal').textContent=fmt(subtotal);
+  document.getElementById('cot-iva').textContent=fmt(iva);
+  document.getElementById('cot-total').textContent=fmt(total);
+}
+
+function cotGenGetItems(){
+  const cid=document.getElementById('cot-gen-cliente').value;
+  const cl=clientes.find(c=>c.id==cid);
+  const precioM3=parseFloat(cl?.precio_usd_m3)||0;
+  return PRODUCTOS.map(p=>{
+    const pallets=parseFloat(document.getElementById('cot-pallets-'+p.id)?.value||0);
+    if(!pallets)return null;
+    return {productoId:p.id,productoNombre:p.nombre,medidas:p.medidas,m3PorPallet:p.m3PorPallet||0,unidadesPorPallet:p.unidadesPorPallet||0,precioPorM3:precioM3,palletEstimados:pallets};
+  }).filter(Boolean);
+}
+
+function limpiarCotGen(){
+  document.getElementById('cot-gen-cliente').value='';
+  document.getElementById('cot-gen-precio-display').textContent='—';
+  document.getElementById('cot-gen-numero').textContent='—';
+  document.getElementById('cot-gen-validez').value='';
+  document.getElementById('cot-gen-obs').value='';
+  document.getElementById('cot-gen-body').innerHTML='<tr class="empty-row"><td colspan="8">Seleccioná un cliente para ver los productos.</td></tr>';
+  document.getElementById('cot-subtotal').textContent='U$D 0.00';
+  document.getElementById('cot-iva').textContent='U$D 0.00';
+  document.getElementById('cot-total').textContent='U$D 0.00';
+  document.getElementById('cot-gen-fecha').value='';
+}
+
+async function guardarCotGen(){
+  const clienteId=document.getElementById('cot-gen-cliente').value;
+  if(!clienteId){toast('Seleccioná un cliente',true);return;}
+  const items=cotGenGetItems();
+  if(!items.length){toast('Ingresá pallets para al menos un producto',true);return;}
+  const cl=clientes.find(c=>c.id==clienteId);
+  const precioM3=parseFloat(cl?.precio_usd_m3)||0;
+  const subtotal=items.reduce((s,it)=>s+it.m3PorPallet*it.precioPorM3*it.palletEstimados,0);
+  const iva=subtotal*0.22;
+  const totalGeneral=subtotal+iva;
+  const numero=nextCotNumero();
+  const fecha=document.getElementById('cot-gen-fecha').value||new Date().toISOString().split('T')[0];
+  const id='cot_'+Date.now();
+  setSyncStatus('syncing');
+  const {data:cd,error:ce}=await sb.from('cotizaciones').insert({id,numero,cliente_id:parseInt(clienteId),total_general:totalGeneral,subtotal,iva,estado:'borrador',notas:document.getElementById('cot-gen-obs').value.trim()||null,validez:document.getElementById('cot-gen-validez').value.trim()||null,fecha_creacion:fecha}).select().single();
+  if(ce){toast('Error: '+ce.message,true);setSyncStatus('offline');return;}
+  if(items.length)await sb.from('cotizacion_items').insert(items.map(it=>({cotizacion_id:id,producto_id:it.productoId,producto_nombre:it.productoNombre,pallet_estimados:it.palletEstimados,m3_por_pallet:it.m3PorPallet,precio_por_m3:it.precioPorM3,unidades_por_pallet:it.unidadesPorPallet,precio_usd_m3_aplicado:precioM3})));
+  cotizaciones.push({id,numero,clienteId,totalGeneral,subtotal,iva,estado:'borrador',notas:cd.notas,validez:cd.validez,fechaCreacion:fecha,items});
+  setSyncStatus('online');
+  document.getElementById('cot-gen-numero').textContent=numero;
+  renderCotizaciones();
+  toast('Cotización '+numero+' guardada ✓');
+}
+
+function cargarCotEnGenerador(id){
+  const c=cotizaciones.find(x=>x.id===id);if(!c)return;
+  document.getElementById('cot-gen-cliente').value=c.clienteId;
+  cotGenClienteChange();
+  setTimeout(()=>{
+    (c.items||[]).forEach(it=>{const inp=document.getElementById('cot-pallets-'+it.productoId);if(inp)inp.value=it.palletEstimados;});
+    cotGenRecalcular();
+    document.getElementById('cot-gen-validez').value=c.validez||'';
+    document.getElementById('cot-gen-obs').value=c.notas||'';
+    document.getElementById('cot-gen-fecha').value=c.fechaCreacion||'';
+    document.getElementById('cot-gen-numero').textContent=c.numero;
+    document.querySelector('#tab-cotizaciones').scrollIntoView({behavior:'smooth',block:'start'});
+  },100);
+}
+
+function exportarCotGenPDF(){
+  const clienteId=document.getElementById('cot-gen-cliente').value;
+  if(!clienteId){toast('Seleccioná un cliente primero',true);return;}
+  const items=cotGenGetItems();
+  if(!items.length){toast('Ingresá pallets para al menos un producto',true);return;}
+  const cl=clientes.find(c=>c.id==clienteId)||{};
+  const numero=document.getElementById('cot-gen-numero').textContent||'BORRADOR';
+  const fecha=document.getElementById('cot-gen-fecha').value||new Date().toISOString().split('T')[0];
+  const validez=document.getElementById('cot-gen-validez').value;
+  const obs=document.getElementById('cot-gen-obs').value;
+  const precioM3=parseFloat(cl.precio_usd_m3)||0;
+  const subtotal=items.reduce((s,it)=>s+it.m3PorPallet*precioM3*it.palletEstimados,0);
+  const iva=subtotal*0.22;
+  const total=subtotal+iva;
+  const fmt=v=>'U$D '+Number(v).toLocaleString('es-UY',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const escP=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const [y,m,d]=fecha.split('-');
+  const fechaStr=d+'/'+m+'/'+y;
+  const rows=items.map(it=>{
+    const precioPallet=(it.m3PorPallet*precioM3).toFixed(2);
+    const totalLinea=(it.m3PorPallet*precioM3*it.palletEstimados).toFixed(2);
+    return '<tr>'+
+      '<td style="border:1px solid #ccc;padding:5px 8px">'+escP(it.productoNombre)+'</td>'+
+      '<td style="border:1px solid #ccc;padding:5px 8px;text-align:center">'+escP(it.medidas||'—')+'</td>'+
+      '<td style="border:1px solid #ccc;padding:5px 8px;text-align:center">'+( it.unidadesPorPallet||'—')+'</td>'+
+      '<td style="border:1px solid #ccc;padding:5px 8px;text-align:center">'+( it.m3PorPallet?it.m3PorPallet.toFixed(3):'—')+'</td>'+
+      '<td style="border:1px solid #ccc;padding:5px 8px;text-align:right">'+fmt(precioM3)+'</td>'+
+      '<td style="border:1px solid #ccc;padding:5px 8px;text-align:right">'+fmt(precioPallet)+'</td>'+
+      '<td style="border:1px solid #ccc;padding:5px 8px;text-align:center">'+it.palletEstimados+'</td>'+
+      '<td style="border:1px solid #ccc;padding:5px 8px;text-align:right;font-weight:700">'+fmt(totalLinea)+'</td>'+
+      '</tr>';
+  }).join('');
+  const win=window.open('','_blank');
+  win.document.write(`<html><head><title>Cotización ${escP(numero)}</title>
+  <style>body{font-family:Arial,sans-serif;padding:32px;color:#111;font-size:12px}table{border-collapse:collapse;width:100%}@media print{body{padding:16px}}</style>
+  </head><body>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;border-bottom:2px solid #000;padding-bottom:16px">
+    <div><div style="font-size:28px;font-weight:900;line-height:1">log<br>74.</div><div style="font-size:11px;color:#555;margin-top:4px">Logística 74 (Pilanor SA)<br>RUT 218365040016<br>Ruta 74 Km 25,500 — Joaquín Suárez</div></div>
+    <div style="text-align:right"><div style="font-size:22px;font-weight:900;letter-spacing:2px">COTIZACIÓN</div><div style="font-size:32px;font-weight:900;color:#c0392b">${escP(numero)}</div><div style="font-size:11px">Fecha: ${fechaStr}</div>${validez?`<div style="font-size:11px">Validez: ${escP(validez)}</div>`:''}</div>
+  </div>
+  <table style="margin-bottom:16px;border:none"><tr><td style="padding:2px 12px 2px 0;font-weight:700">Empresa:</td><td>${escP(cl.empresa)}</td><td style="padding:2px 0 2px 24px;font-weight:700">Obra:</td><td>${escP(cl.obra)}</td></tr>
+  ${cl.rut?`<tr><td style="font-weight:700;padding:2px 12px 2px 0">RUT/CI:</td><td>${escP(cl.rut)}</td></tr>`:''}
+  ${cl.direccion?`<tr><td style="font-weight:700;padding:2px 12px 2px 0">Dirección:</td><td>${escP(cl.direccion)}</td></tr>`:''}
+  ${cl.email?`<tr><td style="font-weight:700;padding:2px 12px 2px 0">Email:</td><td>${escP(cl.email)}</td></tr>`:''}
+  ${cl.telefono?`<tr><td style="font-weight:700;padding:2px 12px 2px 0">Teléfono:</td><td>${escP(cl.telefono)}</td></tr>`:''}
+  </table>
+  <table style="margin-bottom:16px">
+    <thead><tr style="background:#eee">
+      <th style="border:1px solid #ccc;padding:6px 8px">Descripción</th>
+      <th style="border:1px solid #ccc;padding:6px 8px">Medidas</th>
+      <th style="border:1px solid #ccc;padding:6px 8px">U/Pallet</th>
+      <th style="border:1px solid #ccc;padding:6px 8px">M³/Pallet</th>
+      <th style="border:1px solid #ccc;padding:6px 8px">Precio U$D/m³</th>
+      <th style="border:1px solid #ccc;padding:6px 8px">Precio x Pallet</th>
+      <th style="border:1px solid #ccc;padding:6px 8px">Pallets</th>
+      <th style="border:1px solid #ccc;padding:6px 8px">Total U$D</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div style="display:flex;justify-content:flex-end;margin-bottom:20px">
+    <table style="width:280px;border:none">
+      <tr><td style="padding:4px 0">Subtotal sin IVA</td><td style="font-weight:700;text-align:right">${fmt(subtotal)}</td></tr>
+      <tr><td style="padding:4px 0;color:#555">IVA 22%</td><td style="text-align:right;color:#555">${fmt(iva)}</td></tr>
+      <tr style="border-top:2px solid #000"><td style="padding:6px 0;font-size:14px;font-weight:700">Total General</td><td style="font-size:14px;font-weight:700;text-align:right;color:#c0392b">${fmt(total)}</td></tr>
+    </table>
+  </div>
+  ${obs?`<div style="border:1px solid #ccc;padding:10px;border-radius:4px;margin-bottom:16px"><strong>Observaciones:</strong> ${escP(obs)}</div>`:''}
+  <div style="border-top:1px solid #ccc;padding-top:12px;font-size:10px;color:#777;text-align:center">Logística 74 (Pilanor SA) · Ruta 74 Km 25,500, Joaquín Suárez, Uruguay · RUT 218365040016</div>
+  <script>window.print();<\/script></body></html>`);
+  win.document.close();
 }
 
 // ── COTIZACIONES ──────────────────────────────────────
