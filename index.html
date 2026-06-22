@@ -3062,18 +3062,21 @@ function cotGenRenderProductos(precioM3){
   const tbody=document.getElementById('cot-gen-body');
   const precio=parseFloat(precioM3)||0;
   if(!PRODUCTOS.length){tbody.innerHTML='<tr class="empty-row"><td colspan="8">No hay productos en el catálogo.</td></tr>';return;}
+  const INP='background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:0.3rem;font-family:var(--mono);font-size:0.85rem;text-align:center';
   tbody.innerHTML=PRODUCTOS.map(p=>{
     const m3=p.m3PorPallet||0;
     const u=p.unidadesPorPallet||0;
-    const precioPallet=precio*m3;
+    const autoPrice=precio&&m3?precio*m3:0;
+    const tieneM3=m3>0&&precio>0;
+    const pricePlaceholder=tieneM3?'':(precio?'Precio manual':'');
     return '<tr id="cot-row-prod-'+p.id+'">'+
-      '<td><strong>'+esc(p.nombre)+'</strong></td>'+
+      '<td><strong>'+esc(p.nombre)+'</strong>'+(!tieneM3?'<div style="font-size:0.67rem;color:#e8a838;margin-top:2px">⚡ precio manual</div>':'')+'</td>'+
       '<td style="font-size:0.78rem;color:var(--text-muted)">'+esc(p.medidas||'—')+'</td>'+
-      '<td style="font-family:var(--mono);text-align:center">'+( u||'—')+'</td>'+
-      '<td style="font-family:var(--mono);text-align:center">'+( m3?m3.toFixed(3):'—')+'</td>'+
-      '<td style="font-family:var(--mono);text-align:center">'+( precio?'U$D '+precio.toFixed(2):'—')+'</td>'+
-      '<td style="font-family:var(--mono);text-align:center" id="cot-precioPallet-'+p.id+'">'+( precioPallet?'U$D '+precioPallet.toFixed(2):'—')+'</td>'+
-      '<td><input type="number" min="0" value="0" id="cot-pallets-'+p.id+'" style="width:64px;text-align:center;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:0.3rem;font-family:var(--mono);font-size:0.9rem" oninput="cotGenRecalcular()"/></td>'+
+      '<td style="font-family:var(--mono);text-align:center">'+(u||'—')+'</td>'+
+      '<td style="font-family:var(--mono);text-align:center">'+(m3?m3.toFixed(3):'—')+'</td>'+
+      '<td style="font-family:var(--mono);text-align:center">'+(precio?'U$D '+precio.toFixed(2):'—')+'</td>'+
+      '<td><input type="number" min="0" step="any" id="cot-precioPallet-'+p.id+'" value="'+(autoPrice?autoPrice.toFixed(2):'')+'" placeholder="'+(tieneM3?'auto: U$D '+autoPrice.toFixed(2):pricePlaceholder)+'" style="'+INP+';width:90px;'+(tieneM3?'color:var(--text-muted)':'')+'" oninput="cotGenRecalcular()" title="'+(tieneM3?'Auto-calculado. Podés sobreescribirlo.':'Ingresá precio por pallet manualmente.')+'"/></td>'+
+      '<td><input type="number" min="0" value="0" id="cot-pallets-'+p.id+'" style="'+INP+';width:60px" oninput="cotGenRecalcular()"/></td>'+
       '<td style="font-family:var(--mono);font-weight:700;color:var(--accent);text-align:right" id="cot-total-'+p.id+'">U$D 0.00</td>'+
       '</tr>';
   }).join('');
@@ -3081,14 +3084,10 @@ function cotGenRenderProductos(precioM3){
 }
 
 function cotGenRecalcular(){
-  const cid=document.getElementById('cot-gen-cliente').value;
-  const cl=clientes.find(c=>c.id==cid);
-  const precioM3=parseFloat(cl?.precio_usd_m3)||0;
   let subtotal=0;
   PRODUCTOS.forEach(p=>{
-    const m3=p.m3PorPallet||0;
     const pallets=parseFloat(document.getElementById('cot-pallets-'+p.id)?.value||0);
-    const precioPallet=precioM3*m3;
+    const precioPallet=parseFloat(document.getElementById('cot-precioPallet-'+p.id)?.value||0);
     const total=precioPallet*pallets;
     subtotal+=total;
     const te=document.getElementById('cot-total-'+p.id);
@@ -3103,13 +3102,11 @@ function cotGenRecalcular(){
 }
 
 function cotGenGetItems(){
-  const cid=document.getElementById('cot-gen-cliente').value;
-  const cl=clientes.find(c=>c.id==cid);
-  const precioM3=parseFloat(cl?.precio_usd_m3)||0;
   return PRODUCTOS.map(p=>{
     const pallets=parseFloat(document.getElementById('cot-pallets-'+p.id)?.value||0);
     if(!pallets)return null;
-    return {productoId:p.id,productoNombre:p.nombre,medidas:p.medidas,m3PorPallet:p.m3PorPallet||0,unidadesPorPallet:p.unidadesPorPallet||0,precioPorM3:precioM3,palletEstimados:pallets};
+    const precioPallet=parseFloat(document.getElementById('cot-precioPallet-'+p.id)?.value||0);
+    return {productoId:p.id,productoNombre:p.nombre,medidas:p.medidas,m3PorPallet:p.m3PorPallet||0,unidadesPorPallet:p.unidadesPorPallet||0,precioPorM3:0,precioPalletManual:precioPallet,palletEstimados:pallets};
   }).filter(Boolean);
 }
 
@@ -3131,9 +3128,7 @@ async function guardarCotGen(){
   if(!clienteId){toast('Seleccioná un cliente',true);return;}
   const items=cotGenGetItems();
   if(!items.length){toast('Ingresá pallets para al menos un producto',true);return;}
-  const cl=clientes.find(c=>c.id==clienteId);
-  const precioM3=parseFloat(cl?.precio_usd_m3)||0;
-  const subtotal=items.reduce((s,it)=>s+it.m3PorPallet*it.precioPorM3*it.palletEstimados,0);
+  const subtotal=items.reduce((s,it)=>s+(it.precioPalletManual||0)*it.palletEstimados,0);
   const iva=subtotal*0.22;
   const totalGeneral=subtotal+iva;
   const numero=nextCotNumero();
@@ -3142,7 +3137,7 @@ async function guardarCotGen(){
   setSyncStatus('syncing');
   const {data:cd,error:ce}=await sb.from('cotizaciones').insert({id,numero,cliente_id:parseInt(clienteId),total_general:totalGeneral,subtotal,iva,estado:'borrador',notas:document.getElementById('cot-gen-obs').value.trim()||null,validez:document.getElementById('cot-gen-validez').value.trim()||null,fecha_creacion:fecha}).select().single();
   if(ce){toast('Error: '+ce.message,true);setSyncStatus('offline');return;}
-  if(items.length)await sb.from('cotizacion_items').insert(items.map(it=>({cotizacion_id:id,producto_id:it.productoId,producto_nombre:it.productoNombre,pallet_estimados:it.palletEstimados,m3_por_pallet:it.m3PorPallet,precio_por_m3:it.precioPorM3,unidades_por_pallet:it.unidadesPorPallet,precio_usd_m3_aplicado:precioM3})));
+  if(items.length)await sb.from('cotizacion_items').insert(items.map(it=>({cotizacion_id:id,producto_id:it.productoId,producto_nombre:it.productoNombre,pallet_estimados:it.palletEstimados,m3_por_pallet:it.m3PorPallet,precio_por_m3:it.precioPalletManual||0,unidades_por_pallet:it.unidadesPorPallet,precio_usd_m3_aplicado:it.precioPalletManual||0})));
   cotizaciones.push({id,numero,clienteId,totalGeneral,subtotal,iva,estado:'borrador',notas:cd.notas,validez:cd.validez,fechaCreacion:fecha,items});
   setSyncStatus('online');
   document.getElementById('cot-gen-numero').textContent=numero;
@@ -3176,7 +3171,7 @@ function exportarCotGenPDF(){
   const validez=document.getElementById('cot-gen-validez').value;
   const obs=document.getElementById('cot-gen-obs').value;
   const precioM3=parseFloat(cl.precio_usd_m3)||0;
-  const subtotal=items.reduce((s,it)=>s+it.m3PorPallet*precioM3*it.palletEstimados,0);
+  const subtotal=items.reduce((s,it)=>s+(it.precioPalletManual||0)*it.palletEstimados,0);
   const iva=subtotal*0.22;
   const total=subtotal+iva;
   const fmt=v=>'U$D '+Number(v).toLocaleString('es-UY',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -3185,16 +3180,16 @@ function exportarCotGenPDF(){
   const fechaStr=d+'/'+m+'/'+y;
   let totalBloques=0;
   const rows=items.map(it=>{
-    const precioPallet=(it.m3PorPallet*precioM3).toFixed(2);
-    const totalLinea=(it.m3PorPallet*precioM3*it.palletEstimados).toFixed(2);
+    const precioPallet=it.precioPalletManual||0;
+    const totalLinea=(precioPallet*it.palletEstimados).toFixed(2);
     const bloques=(it.unidadesPorPallet&&it.palletEstimados)?it.unidadesPorPallet*it.palletEstimados:0;
     totalBloques+=bloques;
     return '<tr>'+
       '<td style="border:1px solid #ccc;padding:5px 8px">'+escP(it.productoNombre)+'</td>'+
       '<td style="border:1px solid #ccc;padding:5px 8px;text-align:center">'+escP(it.medidas||'—')+'</td>'+
-      '<td style="border:1px solid #ccc;padding:5px 8px;text-align:center">'+( it.unidadesPorPallet||'—')+'</td>'+
-      '<td style="border:1px solid #ccc;padding:5px 8px;text-align:center">'+( it.m3PorPallet?it.m3PorPallet.toFixed(3):'—')+'</td>'+
-      '<td style="border:1px solid #ccc;padding:5px 8px;text-align:right">'+fmt(precioM3)+'</td>'+
+      '<td style="border:1px solid #ccc;padding:5px 8px;text-align:center">'+(it.unidadesPorPallet||'—')+'</td>'+
+      '<td style="border:1px solid #ccc;padding:5px 8px;text-align:center">'+(it.m3PorPallet?it.m3PorPallet.toFixed(3):'—')+'</td>'+
+      '<td style="border:1px solid #ccc;padding:5px 8px;text-align:right">'+(it.m3PorPallet?fmt(precioM3):'—')+'</td>'+
       '<td style="border:1px solid #ccc;padding:5px 8px;text-align:right">'+fmt(precioPallet)+'</td>'+
       '<td style="border:1px solid #ccc;padding:5px 8px;text-align:center">'+it.palletEstimados+'</td>'+
       '<td style="border:1px solid #ccc;padding:5px 8px;text-align:center;font-weight:700;background:#f9f9f0">'+(bloques||'—')+'</td>'+
