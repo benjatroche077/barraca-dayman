@@ -617,12 +617,13 @@ body.compact .kpi-value{font-size:1.6rem;}
             <div class="form-group" style="flex:1;min-width:110px"><label>Marca</label><input type="text" id="np-marca" placeholder="Ej: Losa"/></div>
             <div class="form-group" style="flex:1;min-width:110px"><label>M³ / pallet</label><input type="number" min="0" step="any" id="np-m3" placeholder="Ej: 0.576"/></div>
             <div class="form-group" style="flex:1;min-width:110px"><label>Unid. / pallet</label><input type="number" min="0" id="np-unidades" placeholder="Ej: 96"/></div>
+            <div class="form-group" style="flex:1;min-width:110px"><label>Unidad de medida</label><select id="np-unidad" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:0.45rem 0.6rem;font-size:0.85rem;width:100%"><option value="pallet">Pallet</option><option value="pack">Pack</option><option value="unitario">Unitario</option></select></div>
             <button class="btn btn-primary" onclick="agregarProducto()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Agregar</button>
           </div>
         </div>
         <div class="card">
           <div class="table-wrapper">
-            <table class="data-table"><thead><tr><th>#</th><th>Nombre</th><th>Medidas</th><th>Marca</th><th>M³/Pallet</th><th>U/Pallet</th><th>En pedidos</th><th>Ficha</th><th>Acciones</th></tr></thead><tbody id="body-catalogo"></tbody></table>
+            <table class="data-table"><thead><tr><th>#</th><th>Nombre</th><th>Medidas</th><th>Marca</th><th>Unidad</th><th>M³/Pallet</th><th>U/Pallet</th><th>En pedidos</th><th>Ficha</th><th>Acciones</th></tr></thead><tbody id="body-catalogo"></tbody></table>
           </div>
         </div>
       </section>
@@ -1180,7 +1181,7 @@ async function cargarDatos() {
     if(rS.error) throw rS.error;
     if(rPed.error) throw rPed.error;
     clientes=rC.data||[];
-    PRODUCTOS=(rP.data||[]).map(p=>({id:p.id,nombre:p.nombre,medidas:p.medidas||null,marca:p.marca||null,m3PorPallet:p.m3_por_pallet||null,unidadesPorPallet:p.unidades_por_pallet||null}));
+    PRODUCTOS=(rP.data||[]).map(p=>({id:p.id,nombre:p.nombre,medidas:p.medidas||null,marca:p.marca||null,m3PorPallet:p.m3_por_pallet||null,unidadesPorPallet:p.unidades_por_pallet||null,unidadMedida:p.unidad_medida||'pallet'}));
     stock={};(rS.data||[]).forEach(s=>{stock[s.producto_id]=s.cantidad;});
     pedidos=(rPed.data||[]).map(p=>({
       id:p.id,clienteId:p.cliente_id,empresa:p.empresa,obra:p.obra,
@@ -1439,18 +1440,20 @@ async function agregarProducto() {
   const m3Val=document.getElementById('np-m3')?.value;
   const m3PorPallet=m3Val!==''&&m3Val!=null?parseFloat(m3Val):null;
   const unidadesPorPallet=parseInt(document.getElementById('np-unidades')?.value)||null;
+  const unidadMedida=document.getElementById('np-unidad')?.value||'pallet';
   const id='prod_'+Date.now();
   setSyncStatus('syncing');
-  const {error:pe}=await sb.from('productos').insert({id,nombre,medidas,marca,m3_por_pallet:m3PorPallet,unidades_por_pallet:unidadesPorPallet,orden:PRODUCTOS.length+1});
+  const {error:pe}=await sb.from('productos').insert({id,nombre,medidas,marca,m3_por_pallet:m3PorPallet,unidades_por_pallet:unidadesPorPallet,unidad_medida:unidadMedida,orden:PRODUCTOS.length+1});
   if(pe){toast('Error: '+pe.message,true);setSyncStatus('offline');return;}
   await sb.from('stock').insert({producto_id:id,cantidad:0});
-  PRODUCTOS.push({id,nombre,medidas,marca,m3PorPallet,unidadesPorPallet}); stock[id]=0;
+  PRODUCTOS.push({id,nombre,medidas,marca,m3PorPallet,unidadesPorPallet,unidadMedida}); stock[id]=0;
   setSyncStatus('online');
   document.getElementById('np-nombre').value='';
   document.getElementById('np-medidas').value='';
   document.getElementById('np-marca').value='';
   if(document.getElementById('np-m3'))document.getElementById('np-m3').value='';
   if(document.getElementById('np-unidades'))document.getElementById('np-unidades').value='';
+  if(document.getElementById('np-unidad'))document.getElementById('np-unidad').value='pallet';
   construirProductosGrid(); construirImportGrid(); renderCatalogo();
   toast('Producto "'+nombre+'" agregado ✓');
 }
@@ -1479,14 +1482,16 @@ async function guardarEditProducto(id) {
   const inpU=document.getElementById('inline-edit-u-'+id);
   const nuevasMedidas=inpM?inpM.value.trim()||null:null;
   const nuevaMarca=inpMarca?inpMarca.value.trim()||null:null;
+  const inpUnidad=document.getElementById('inline-edit-unidad-'+id);
   const nuevoM3=inpM3&&inpM3.value!==''?parseFloat(inpM3.value):null;
   const nuevasU=inpU&&inpU.value!==''?parseInt(inpU.value):null;
+  const nuevaUnidad=inpUnidad?inpUnidad.value:'pallet';
   setSyncStatus('syncing');
-  const {error}=await sb.from('productos').update({nombre:nuevoNombre,medidas:nuevasMedidas,marca:nuevaMarca,m3_por_pallet:nuevoM3,unidades_por_pallet:nuevasU}).eq('id',id);
+  const {error}=await sb.from('productos').update({nombre:nuevoNombre,medidas:nuevasMedidas,marca:nuevaMarca,m3_por_pallet:nuevoM3,unidades_por_pallet:nuevasU,unidad_medida:nuevaUnidad}).eq('id',id);
   if(error){toast('Error: '+error.message,true);setSyncStatus('offline');return;}
   const idx=PRODUCTOS.findIndex(x=>x.id===id);
   PRODUCTOS[idx].nombre=nuevoNombre; PRODUCTOS[idx].medidas=nuevasMedidas; PRODUCTOS[idx].marca=nuevaMarca;
-  PRODUCTOS[idx].m3PorPallet=nuevoM3; PRODUCTOS[idx].unidadesPorPallet=nuevasU;
+  PRODUCTOS[idx].m3PorPallet=nuevoM3; PRODUCTOS[idx].unidadesPorPallet=nuevasU; PRODUCTOS[idx].unidadMedida=nuevaUnidad;
   await sb.from('pedido_items').update({nombre:nuevoNombre}).eq('producto_id',id);
   pedidos=pedidos.map(pd=>({...pd,productos:(pd.productos||[]).map(pr=>pr.id===id?{...pr,nombre:nuevoNombre}:pr)}));
   setSyncStatus('online'); construirProductosGrid(); construirImportGrid(); renderCatalogo(); renderPedidos();
@@ -1820,6 +1825,7 @@ function renderCatalogo(){
       '<td id="row-nombre-'+p.id+'"><strong>'+esc(p.nombre)+'</strong></td>'+
       '<td id="row-medidas-'+p.id+'" style="font-size:0.8rem;color:var(--text-muted)">'+(p.medidas?esc(p.medidas):'<span style="color:var(--text-dim)">—</span>')+'</td>'+
       '<td id="row-marca-'+p.id+'" style="font-size:0.8rem;color:var(--text-muted)">'+(p.marca?esc(p.marca):'<span style="color:var(--text-dim)">—</span>')+'</td>'+
+      '<td id="row-unidad-'+p.id+'" style="font-size:0.78rem;text-align:center"><span style="background:var(--border);border-radius:4px;padding:0.1rem 0.45rem;font-size:0.72rem">'+(p.unidadMedida||'pallet')+'</span></td>'+
       '<td id="row-m3-'+p.id+'" style="font-family:var(--mono);font-size:0.8rem;text-align:center">'+(p.m3PorPallet!=null&&p.m3PorPallet>0?p.m3PorPallet:'<span style="color:var(--text-dim)">—</span>')+'</td>'+
       '<td id="row-u-'+p.id+'" style="font-family:var(--mono);font-size:0.8rem;text-align:center">'+(p.unidadesPorPallet>0?p.unidadesPorPallet:'<span style="color:var(--text-dim)">—</span>')+'</td>'+
       '<td><span style="font-family:var(--mono);font-size:0.8rem;color:'+(usos>0?'var(--accent)':'var(--text-dim)')+'">'+usos+' pedido'+(usos!==1?'s':'')+'</span></td>'+
@@ -1832,9 +1838,11 @@ function renderCatalogo(){
 function editarProducto(id){
   const p=PRODUCTOS.find(x=>x.id===id);if(!p)return;
   const inpT=(s,tipo,val)=>'<input type="'+tipo+'" id="inline-edit-'+s+'-'+id+'" value="'+esc(String(val??''))+'" step="any" style="background:var(--bg);border:1px solid var(--accent);color:var(--text);border-radius:var(--radius-sm);padding:0.35rem 0.5rem;font-family:var(--mono);font-size:0.82rem;outline:none;width:100%" onkeydown="if(event.key===\'Enter\')guardarEditProducto(\''+id+'\');if(event.key===\'Escape\')renderCatalogo()"/>';
+  const selUnidad='<select id="inline-edit-unidad-'+id+'" style="background:var(--bg);border:1px solid var(--accent);color:var(--text);border-radius:var(--radius-sm);padding:0.3rem;font-size:0.82rem;width:100%"><option value="pallet"'+(p.unidadMedida==='pallet'?' selected':'')+'>Pallet</option><option value="pack"'+(p.unidadMedida==='pack'?' selected':'')+'>Pack</option><option value="unitario"'+(p.unidadMedida==='unitario'?' selected':'')+'>Unitario</option></select>';
   document.getElementById('row-nombre-'+id).innerHTML=inpT('nombre','text',p.nombre);
   document.getElementById('row-medidas-'+id).innerHTML=inpT('medidas','text',p.medidas||'');
   document.getElementById('row-marca-'+id).innerHTML=inpT('marca','text',p.marca||'');
+  document.getElementById('row-unidad-'+id).innerHTML=selUnidad;
   document.getElementById('row-m3-'+id).innerHTML=inpT('m3','number',p.m3PorPallet||'');
   document.getElementById('row-u-'+id).innerHTML=inpT('u','number',p.unidadesPorPallet||'')+
     '<div style="display:flex;gap:0.3rem;margin-top:0.3rem">'+
