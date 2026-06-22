@@ -3183,9 +3183,12 @@ function exportarCotGenPDF(){
   const escP=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const [y,m,d]=fecha.split('-');
   const fechaStr=d+'/'+m+'/'+y;
+  let totalBloques=0;
   const rows=items.map(it=>{
     const precioPallet=(it.m3PorPallet*precioM3).toFixed(2);
     const totalLinea=(it.m3PorPallet*precioM3*it.palletEstimados).toFixed(2);
+    const bloques=(it.unidadesPorPallet&&it.palletEstimados)?it.unidadesPorPallet*it.palletEstimados:0;
+    totalBloques+=bloques;
     return '<tr>'+
       '<td style="border:1px solid #ccc;padding:5px 8px">'+escP(it.productoNombre)+'</td>'+
       '<td style="border:1px solid #ccc;padding:5px 8px;text-align:center">'+escP(it.medidas||'—')+'</td>'+
@@ -3194,6 +3197,7 @@ function exportarCotGenPDF(){
       '<td style="border:1px solid #ccc;padding:5px 8px;text-align:right">'+fmt(precioM3)+'</td>'+
       '<td style="border:1px solid #ccc;padding:5px 8px;text-align:right">'+fmt(precioPallet)+'</td>'+
       '<td style="border:1px solid #ccc;padding:5px 8px;text-align:center">'+it.palletEstimados+'</td>'+
+      '<td style="border:1px solid #ccc;padding:5px 8px;text-align:center;font-weight:700;background:#f9f9f0">'+(bloques||'—')+'</td>'+
       '<td style="border:1px solid #ccc;padding:5px 8px;text-align:right;font-weight:700">'+fmt(totalLinea)+'</td>'+
       '</tr>';
   }).join('');
@@ -3220,11 +3224,16 @@ function exportarCotGenPDF(){
       <th style="border:1px solid #ccc;padding:6px 8px">Precio U$D/m³</th>
       <th style="border:1px solid #ccc;padding:6px 8px">Precio x Pallet</th>
       <th style="border:1px solid #ccc;padding:6px 8px">Pallets</th>
+      <th style="border:1px solid #ccc;padding:6px 8px;background:#f0f0f0">Total Bloques</th>
       <th style="border:1px solid #ccc;padding:6px 8px">Total U$D</th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>
-  <div style="display:flex;justify-content:flex-end;margin-bottom:20px">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px">
+    <table style="border:1px solid #ccc;border-collapse:collapse">
+      <tr style="background:#f0f0f0"><td colspan="2" style="padding:5px 10px;font-weight:700;font-size:12px">TOTAL BLOQUES</td></tr>
+      <tr><td style="padding:4px 10px;border-top:1px solid #ccc;font-size:12px">Total unidades:</td><td style="padding:4px 10px;border-top:1px solid #ccc;font-weight:700;font-size:14px;text-align:right">${totalBloques.toLocaleString('es-UY')}</td></tr>
+    </table>
     <table style="width:280px;border:none">
       <tr><td style="padding:4px 0">Subtotal sin IVA</td><td style="font-weight:700;text-align:right">${fmt(subtotal)}</td></tr>
       <tr><td style="padding:4px 0;color:#555">IVA 22%</td><td style="text-align:right;color:#555">${fmt(iva)}</td></tr>
