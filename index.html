@@ -618,12 +618,13 @@ body.compact .kpi-value{font-size:1.6rem;}
             <div class="form-group" style="flex:1;min-width:110px"><label>M³ / pallet</label><input type="number" min="0" step="any" id="np-m3" placeholder="Ej: 0.576"/></div>
             <div class="form-group" style="flex:1;min-width:110px"><label>Unid. / pallet</label><input type="number" min="0" id="np-unidades" placeholder="Ej: 96"/></div>
             <div class="form-group" style="flex:1;min-width:110px"><label>Unidad de medida</label><select id="np-unidad" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:0.45rem 0.6rem;font-size:0.85rem;width:100%"><option value="pallet">Pallet</option><option value="pack">Pack</option><option value="unitario">Unitario</option></select></div>
+            <div class="form-group" style="flex:1;min-width:120px"><label>Precio unitario U$D</label><input type="number" min="0" step="any" id="np-precio-unitario" placeholder="Ej: 12.50"/></div>
             <button class="btn btn-primary" onclick="agregarProducto()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Agregar</button>
           </div>
         </div>
         <div class="card">
           <div class="table-wrapper">
-            <table class="data-table"><thead><tr><th>#</th><th>Nombre</th><th>Medidas</th><th>Marca</th><th>Unidad</th><th>M³/Pallet</th><th>U/Pallet</th><th>En pedidos</th><th>Ficha</th><th>Acciones</th></tr></thead><tbody id="body-catalogo"></tbody></table>
+            <table class="data-table"><thead><tr><th>#</th><th>Nombre</th><th>Medidas</th><th>Marca</th><th>Unidad</th><th>M³/Pallet</th><th>U/Pallet</th><th>Precio U$D</th><th>En pedidos</th><th>Ficha</th><th>Acciones</th></tr></thead><tbody id="body-catalogo"></tbody></table>
           </div>
         </div>
       </section>
@@ -1181,7 +1182,7 @@ async function cargarDatos() {
     if(rS.error) throw rS.error;
     if(rPed.error) throw rPed.error;
     clientes=rC.data||[];
-    PRODUCTOS=(rP.data||[]).map(p=>({id:p.id,nombre:p.nombre,medidas:p.medidas||null,marca:p.marca||null,m3PorPallet:p.m3_por_pallet||null,unidadesPorPallet:p.unidades_por_pallet||null,unidadMedida:p.unidad_medida||'pallet'}));
+    PRODUCTOS=(rP.data||[]).map(p=>({id:p.id,nombre:p.nombre,medidas:p.medidas||null,marca:p.marca||null,m3PorPallet:p.m3_por_pallet||null,unidadesPorPallet:p.unidades_por_pallet||null,unidadMedida:p.unidad_medida||'pallet',precioUnitario:p.precio_unitario||null}));
     stock={};(rS.data||[]).forEach(s=>{stock[s.producto_id]=s.cantidad;});
     pedidos=(rPed.data||[]).map(p=>({
       id:p.id,clienteId:p.cliente_id,empresa:p.empresa,obra:p.obra,
@@ -1441,12 +1442,14 @@ async function agregarProducto() {
   const m3PorPallet=m3Val!==''&&m3Val!=null?parseFloat(m3Val):null;
   const unidadesPorPallet=parseInt(document.getElementById('np-unidades')?.value)||null;
   const unidadMedida=document.getElementById('np-unidad')?.value||'pallet';
+  const puVal=document.getElementById('np-precio-unitario')?.value;
+  const precioUnitario=puVal!==''&&puVal!=null?parseFloat(puVal):null;
   const id='prod_'+Date.now();
   setSyncStatus('syncing');
-  const {error:pe}=await sb.from('productos').insert({id,nombre,medidas,marca,m3_por_pallet:m3PorPallet,unidades_por_pallet:unidadesPorPallet,unidad_medida:unidadMedida,orden:PRODUCTOS.length+1});
+  const {error:pe}=await sb.from('productos').insert({id,nombre,medidas,marca,m3_por_pallet:m3PorPallet,unidades_por_pallet:unidadesPorPallet,unidad_medida:unidadMedida,precio_unitario:precioUnitario,orden:PRODUCTOS.length+1});
   if(pe){toast('Error: '+pe.message,true);setSyncStatus('offline');return;}
   await sb.from('stock').insert({producto_id:id,cantidad:0});
-  PRODUCTOS.push({id,nombre,medidas,marca,m3PorPallet,unidadesPorPallet,unidadMedida}); stock[id]=0;
+  PRODUCTOS.push({id,nombre,medidas,marca,m3PorPallet,unidadesPorPallet,unidadMedida,precioUnitario}); stock[id]=0;
   setSyncStatus('online');
   document.getElementById('np-nombre').value='';
   document.getElementById('np-medidas').value='';
@@ -1454,6 +1457,7 @@ async function agregarProducto() {
   if(document.getElementById('np-m3'))document.getElementById('np-m3').value='';
   if(document.getElementById('np-unidades'))document.getElementById('np-unidades').value='';
   if(document.getElementById('np-unidad'))document.getElementById('np-unidad').value='pallet';
+  if(document.getElementById('np-precio-unitario'))document.getElementById('np-precio-unitario').value='';
   construirProductosGrid(); construirImportGrid(); renderCatalogo();
   toast('Producto "'+nombre+'" agregado ✓');
 }
@@ -1483,15 +1487,17 @@ async function guardarEditProducto(id) {
   const nuevasMedidas=inpM?inpM.value.trim()||null:null;
   const nuevaMarca=inpMarca?inpMarca.value.trim()||null:null;
   const inpUnidad=document.getElementById('inline-edit-unidad-'+id);
+  const inpPU=document.getElementById('inline-edit-pu-'+id);
   const nuevoM3=inpM3&&inpM3.value!==''?parseFloat(inpM3.value):null;
   const nuevasU=inpU&&inpU.value!==''?parseInt(inpU.value):null;
   const nuevaUnidad=inpUnidad?inpUnidad.value:'pallet';
+  const nuevoPU=inpPU&&inpPU.value!==''?parseFloat(inpPU.value):null;
   setSyncStatus('syncing');
-  const {error}=await sb.from('productos').update({nombre:nuevoNombre,medidas:nuevasMedidas,marca:nuevaMarca,m3_por_pallet:nuevoM3,unidades_por_pallet:nuevasU,unidad_medida:nuevaUnidad}).eq('id',id);
+  const {error}=await sb.from('productos').update({nombre:nuevoNombre,medidas:nuevasMedidas,marca:nuevaMarca,m3_por_pallet:nuevoM3,unidades_por_pallet:nuevasU,unidad_medida:nuevaUnidad,precio_unitario:nuevoPU}).eq('id',id);
   if(error){toast('Error: '+error.message,true);setSyncStatus('offline');return;}
   const idx=PRODUCTOS.findIndex(x=>x.id===id);
   PRODUCTOS[idx].nombre=nuevoNombre; PRODUCTOS[idx].medidas=nuevasMedidas; PRODUCTOS[idx].marca=nuevaMarca;
-  PRODUCTOS[idx].m3PorPallet=nuevoM3; PRODUCTOS[idx].unidadesPorPallet=nuevasU; PRODUCTOS[idx].unidadMedida=nuevaUnidad;
+  PRODUCTOS[idx].m3PorPallet=nuevoM3; PRODUCTOS[idx].unidadesPorPallet=nuevasU; PRODUCTOS[idx].unidadMedida=nuevaUnidad; PRODUCTOS[idx].precioUnitario=nuevoPU;
   await sb.from('pedido_items').update({nombre:nuevoNombre}).eq('producto_id',id);
   pedidos=pedidos.map(pd=>({...pd,productos:(pd.productos||[]).map(pr=>pr.id===id?{...pr,nombre:nuevoNombre}:pr)}));
   setSyncStatus('online'); construirProductosGrid(); construirImportGrid(); renderCatalogo(); renderPedidos();
@@ -1828,6 +1834,7 @@ function renderCatalogo(){
       '<td id="row-unidad-'+p.id+'" style="font-size:0.78rem;text-align:center"><span style="background:var(--border);border-radius:4px;padding:0.1rem 0.45rem;font-size:0.72rem">'+(p.unidadMedida||'pallet')+'</span></td>'+
       '<td id="row-m3-'+p.id+'" style="font-family:var(--mono);font-size:0.8rem;text-align:center">'+(p.m3PorPallet!=null&&p.m3PorPallet>0?p.m3PorPallet:'<span style="color:var(--text-dim)">—</span>')+'</td>'+
       '<td id="row-u-'+p.id+'" style="font-family:var(--mono);font-size:0.8rem;text-align:center">'+(p.unidadesPorPallet>0?p.unidadesPorPallet:'<span style="color:var(--text-dim)">—</span>')+'</td>'+
+      '<td id="row-pu-'+p.id+'" style="font-family:var(--mono);font-size:0.8rem;text-align:center;color:var(--accent)">'+(p.precioUnitario!=null?'U$D '+Number(p.precioUnitario).toFixed(2):'<span style="color:var(--text-dim)">—</span>')+'</td>'+
       '<td><span style="font-family:var(--mono);font-size:0.8rem;color:'+(usos>0?'var(--accent)':'var(--text-dim)')+'">'+usos+' pedido'+(usos!==1?'s':'')+'</span></td>'+
       '<td><div class="actions-cell">'+fichaBtn+'</div></td>'+
       '<td><div class="actions-cell"><button class="btn btn-edit" onclick="editarProducto(\''+p.id+'\')">Editar</button><button class="btn btn-danger" onclick="eliminarProducto(\''+p.id+'\')">Eliminar</button></div></td>'+
@@ -1844,7 +1851,8 @@ function editarProducto(id){
   document.getElementById('row-marca-'+id).innerHTML=inpT('marca','text',p.marca||'');
   document.getElementById('row-unidad-'+id).innerHTML=selUnidad;
   document.getElementById('row-m3-'+id).innerHTML=inpT('m3','number',p.m3PorPallet||'');
-  document.getElementById('row-u-'+id).innerHTML=inpT('u','number',p.unidadesPorPallet||'')+
+  document.getElementById('row-u-'+id).innerHTML=inpT('u','number',p.unidadesPorPallet||'');
+  document.getElementById('row-pu-'+id).innerHTML=inpT('pu','number',p.precioUnitario??'')+
     '<div style="display:flex;gap:0.3rem;margin-top:0.3rem">'+
     '<button class="btn btn-primary" style="padding:0.3rem 0.7rem;font-size:0.75rem" onclick="guardarEditProducto(\''+id+'\')">OK</button>'+
     '<button class="btn btn-ghost" style="padding:0.3rem 0.6rem;font-size:0.75rem" onclick="renderCatalogo()">&#x2715;</button></div>';
@@ -3066,16 +3074,17 @@ function cotGenRenderProductos(precioM3){
   tbody.innerHTML=PRODUCTOS.map(p=>{
     const m3=p.m3PorPallet||0;
     const u=p.unidadesPorPallet||0;
-    const autoPrice=precio&&m3?precio*m3:0;
+    const autoPrice=precio&&m3?precio*m3:(p.precioUnitario||0);
     const tieneM3=m3>0&&precio>0;
-    const pricePlaceholder=tieneM3?'':(precio?'Precio manual':'');
+    const tienePU=p.precioUnitario!=null;
+    const pricePlaceholder=tieneM3?'':(tienePU?'':'Precio manual');
     return '<tr id="cot-row-prod-'+p.id+'">'+
-      '<td><strong>'+esc(p.nombre)+'</strong>'+(!tieneM3?'<div style="font-size:0.67rem;color:#e8a838;margin-top:2px">⚡ precio manual</div>':'')+'</td>'+
+      '<td><strong>'+esc(p.nombre)+'</strong>'+(!tieneM3&&!tienePU?'<div style="font-size:0.67rem;color:#e8a838;margin-top:2px">⚡ precio manual</div>':(!tieneM3&&tienePU?'<div style="font-size:0.67rem;color:var(--accent);margin-top:2px">$ precio unitario</div>':''))+'</td>'+
       '<td style="font-size:0.78rem;color:var(--text-muted)">'+esc(p.medidas||'—')+'</td>'+
       '<td style="font-family:var(--mono);text-align:center">'+(u||'—')+'</td>'+
       '<td style="font-family:var(--mono);text-align:center">'+(m3?m3.toFixed(3):'—')+'</td>'+
       '<td style="font-family:var(--mono);text-align:center">'+(precio?'U$D '+precio.toFixed(2):'—')+'</td>'+
-      '<td><input type="number" min="0" step="any" id="cot-precioPallet-'+p.id+'" value="'+(autoPrice?autoPrice.toFixed(2):'')+'" placeholder="'+(tieneM3?'auto: U$D '+autoPrice.toFixed(2):pricePlaceholder)+'" style="'+INP+';width:90px;'+(tieneM3?'color:var(--text-muted)':'')+'" oninput="cotGenRecalcular()" title="'+(tieneM3?'Auto-calculado. Podés sobreescribirlo.':'Ingresá precio por pallet manualmente.')+'"/></td>'+
+      '<td><input type="number" min="0" step="any" id="cot-precioPallet-'+p.id+'" value="'+(autoPrice?autoPrice.toFixed(2):'')+'" placeholder="'+(tieneM3?'auto: U$D '+autoPrice.toFixed(2):pricePlaceholder)+'" style="'+INP+';width:90px;'+(tieneM3||tienePU?'color:var(--text-muted)':'')+'" oninput="cotGenRecalcular()" title="'+(tieneM3?'Auto-calculado desde m³.':(tienePU?'Precio unitario del catálogo. Podés sobreescribirlo.':'Ingresá precio por pallet manualmente.'))+'"/></td>'+
       '<td><input type="number" min="0" value="0" id="cot-pallets-'+p.id+'" style="'+INP+';width:60px" oninput="cotGenRecalcular()"/></td>'+
       '<td style="font-family:var(--mono);font-weight:700;color:var(--accent);text-align:right" id="cot-total-'+p.id+'">U$D 0.00</td>'+
       '</tr>';
