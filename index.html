@@ -3074,17 +3074,18 @@ function cotGenRenderProductos(precioM3){
   tbody.innerHTML=PRODUCTOS.map(p=>{
     const m3=p.m3PorPallet||0;
     const u=p.unidadesPorPallet||0;
-    const autoPrice=precio&&m3?precio*m3:(p.precioUnitario||0);
-    const tieneM3=m3>0&&precio>0;
     const tienePU=p.precioUnitario!=null;
-    const pricePlaceholder=tieneM3?'':(tienePU?'':'Precio manual');
+    const tieneM3=m3>0&&precio>0;
+    // precio por pallet: m³ × precio/m³, ó precio_unitario × unidades/pallet
+    const autoPrice=tieneM3?precio*m3:(tienePU&&u?p.precioUnitario*u:0);
+    const pricePlaceholder=tieneM3?'':(tienePU&&u?'':(tienePU?'Sin U/pallet':'Precio manual'));
     return '<tr id="cot-row-prod-'+p.id+'">'+
-      '<td><strong>'+esc(p.nombre)+'</strong>'+(!tieneM3&&!tienePU?'<div style="font-size:0.67rem;color:#e8a838;margin-top:2px">⚡ precio manual</div>':(!tieneM3&&tienePU?'<div style="font-size:0.67rem;color:var(--accent);margin-top:2px">$ precio unitario</div>':''))+'</td>'+
+      '<td><strong>'+esc(p.nombre)+'</strong>'+(tieneM3?'':(tienePU&&u?'<div style="font-size:0.67rem;color:var(--accent);margin-top:2px">U$D '+p.precioUnitario+' × '+u+' u = U$D '+autoPrice.toFixed(2)+'/pallet</div>':(tienePU?'<div style="font-size:0.67rem;color:#e8a838;margin-top:2px">⚠ Falta U/pallet en catálogo</div>':'<div style="font-size:0.67rem;color:#e8a838;margin-top:2px">⚡ precio manual</div>')))+'</td>'+
       '<td style="font-size:0.78rem;color:var(--text-muted)">'+esc(p.medidas||'—')+'</td>'+
       '<td style="font-family:var(--mono);text-align:center">'+(u||'—')+'</td>'+
       '<td style="font-family:var(--mono);text-align:center">'+(m3?m3.toFixed(3):'—')+'</td>'+
       '<td style="font-family:var(--mono);text-align:center">'+(precio?'U$D '+precio.toFixed(2):'—')+'</td>'+
-      '<td><input type="number" min="0" step="any" id="cot-precioPallet-'+p.id+'" value="'+(autoPrice?autoPrice.toFixed(2):'')+'" placeholder="'+(tieneM3?'auto: U$D '+autoPrice.toFixed(2):pricePlaceholder)+'" style="'+INP+';width:90px;'+(tieneM3||tienePU?'color:var(--text-muted)':'')+'" oninput="cotGenRecalcular()" title="'+(tieneM3?'Auto-calculado desde m³.':(tienePU?'Precio unitario del catálogo. Podés sobreescribirlo.':'Ingresá precio por pallet manualmente.'))+'"/></td>'+
+      '<td><input type="number" min="0" step="any" id="cot-precioPallet-'+p.id+'" value="'+(autoPrice?autoPrice.toFixed(2):'')+'" placeholder="'+pricePlaceholder+'" style="'+INP+';width:90px;'+(autoPrice?'color:var(--text-muted)':'')+'" oninput="cotGenRecalcular()" title="'+(tieneM3?'Auto: m³/pallet × precio U$D/m³':(tienePU&&u?'Auto: precio unitario (U$D '+p.precioUnitario+') × '+u+' u/pallet = U$D '+autoPrice.toFixed(2):(tienePU?'Configurá U/pallet en el catálogo':'Ingresá precio por pallet manualmente')))+'"/></td>'+
       '<td><input type="number" min="0" value="0" id="cot-pallets-'+p.id+'" style="'+INP+';width:60px" oninput="cotGenRecalcular()"/></td>'+
       '<td style="font-family:var(--mono);font-weight:700;color:var(--accent);text-align:right" id="cot-total-'+p.id+'">U$D 0.00</td>'+
       '</tr>';
