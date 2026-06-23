@@ -2871,7 +2871,11 @@ function generarRemitoPDF(pedido,numero){
   let rows='';
   for(let i=0;i<10;i++){
     const pr=prods[i];
-    rows+='<tr><td style="'+CELL+'width:22%;text-align:center"></td><td style="'+CELL+'">'+( pr?e(pr.nombre):'')+'</td><td style="'+CELL+'width:22%;text-align:center">'+( pr?pr.cantidad:'')+'</td></tr>';
+    const prodInfo=pr?PRODUCTOS.find(x=>x.id===pr.id)||{}:{};
+    const uPallet=prodInfo.unidadesPorPallet||0;
+    const totalBloques=pr&&uPallet?pr.cantidad*uPallet:'';
+    const desc=pr?(e(pr.nombre)+(uPallet?' ('+uPallet+' u/pallet)':'')):'';
+    rows+='<tr><td style="'+CELL+'width:22%;text-align:center"></td><td style="'+CELL+'">'+desc+'</td><td style="'+CELL+'width:22%;text-align:center">'+(pr?totalBloques:'')+'</td></tr>';
   }
   const FLD=(lbl,val)=>'<div style="margin-bottom:9px;font-size:12px"><span style="font-weight:bold">'+lbl+'</span><span style="display:inline-block;border-bottom:1px solid #000;min-width:55%;margin-left:6px;padding-bottom:1px">'+e(val||'')+'</span></div>';
   const TRFLD=(lbl,val)=>'<div style="margin-bottom:9px;font-size:11px"><span style="display:inline-block;min-width:140px">'+lbl+'</span><span style="display:inline-block;border-bottom:1px solid #000;min-width:240px">'+e(val||'')+'</span></div>';
@@ -2889,10 +2893,10 @@ function generarRemitoPDF(pedido,numero){
     </div>
   </div>
   <div style="margin-bottom:18px;padding:4px 0">
-    ${FLD('NOMBRE :', pedido.empresa)}
+    ${FLD('NOMBRE :', pedido.obra)}
     ${FLD('DIRECCION', cliente.direccion)}
     ${FLD('N DE ORDEN:', pedido.oc)}
-    ${FLD('POR CUENTA Y ORDEN:', pedido.obra)}
+    ${FLD('POR CUENTA Y ORDEN:', 'DELMITA SA')}
   </div>
   <table style="margin-bottom:18px">
     <thead><tr>
