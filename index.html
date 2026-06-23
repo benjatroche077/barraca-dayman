@@ -2875,7 +2875,7 @@ function generarRemitoPDF(pedido,numero){
     const uPallet=prodInfo.unidadesPorPallet||0;
     const totalBloques=pr&&uPallet?pr.cantidad*uPallet:'';
     const desc=pr?(e(pr.nombre)+(uPallet?' ('+uPallet+' u/pallet)':'')):'';
-    rows+='<tr><td style="'+CELL+'width:22%;text-align:center"></td><td style="'+CELL+'">'+desc+'</td><td style="'+CELL+'width:22%;text-align:center">'+(pr?totalBloques:'')+'</td></tr>';
+    rows+='<tr><td style="'+CELL+'width:20%;text-align:center"></td><td style="'+CELL+'">'+desc+'</td><td style="'+CELL+'width:16%;text-align:center">'+(pr?pr.cantidad:'')+'</td><td style="'+CELL+'width:16%;text-align:center">'+(pr?totalBloques:'')+'</td></tr>';
   }
   const FLD=(lbl,val)=>'<div style="margin-bottom:9px;font-size:12px"><span style="font-weight:bold">'+lbl+'</span><span style="display:inline-block;border-bottom:1px solid #000;min-width:55%;margin-left:6px;padding-bottom:1px">'+e(val||'')+'</span></div>';
   const TRFLD=(lbl,val)=>'<div style="margin-bottom:9px;font-size:11px"><span style="display:inline-block;min-width:140px">'+lbl+'</span><span style="display:inline-block;border-bottom:1px solid #000;min-width:240px">'+e(val||'')+'</span></div>';
@@ -2900,9 +2900,10 @@ function generarRemitoPDF(pedido,numero){
   </div>
   <table style="margin-bottom:18px">
     <thead><tr>
-      <th style="background:#ddd;border:1px solid #aaa;padding:5px 6px;font-size:11px;width:22%;text-align:center">ART&Iacute;CULO</th>
+      <th style="background:#ddd;border:1px solid #aaa;padding:5px 6px;font-size:11px;width:20%;text-align:center">ART&Iacute;CULO</th>
       <th style="background:#ddd;border:1px solid #aaa;padding:5px 6px;font-size:11px;text-align:center">DESCRIPCI&Oacute;N</th>
-      <th style="background:#ddd;border:1px solid #aaa;padding:5px 6px;font-size:11px;width:22%;text-align:center">CANTIDAD</th>
+      <th style="background:#ddd;border:1px solid #aaa;padding:5px 6px;font-size:11px;width:16%;text-align:center">PALLETS</th>
+      <th style="background:#ddd;border:1px solid #aaa;padding:5px 6px;font-size:11px;width:16%;text-align:center">UNIDADES</th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>
