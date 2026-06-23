@@ -144,7 +144,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .inicio-panel .kpi-value{font-size:1.6rem;}
 .inicio-panel .section-header{margin-bottom:0;}
 .inicio-calendar{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;}
-.inicio-calendar .semana-grid{flex:1;overflow-y:auto;min-height:0;}
+.inicio-calendar .semana-grid{flex:1;overflow:hidden;min-height:0;}
 .cal-title-group{text-align:center;}
 .cal-title-group h2{font-size:1.15rem;font-weight:700;color:var(--text);}
 .cal-rango{font-size:0.78rem;color:var(--text-muted);font-family:var(--mono);}
@@ -168,8 +168,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .cal-sem-dia-nombre{font-size:0.63rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);}
 .cal-sem-dia-num{font-size:1.1rem;font-weight:700;font-family:var(--mono);color:var(--text);line-height:1;margin-top:0.1rem;}
 .cal-sem-col.hoy .cal-sem-dia-nombre,.cal-sem-col.hoy .cal-sem-dia-num{color:var(--accent);}
-.cal-sem-pedidos{padding:0.4rem;display:flex;flex-direction:column;gap:0.3rem;overflow-y:auto;flex:1;}
-.cal-sem-chip{border-radius:4px;padding:0.28rem 0.4rem;background:var(--bg);border-left:3px solid #7a8494;cursor:pointer;transition:opacity 0.15s;}
+.cal-sem-pedidos{padding:0.4rem;display:flex;flex-direction:column;gap:0.2rem;overflow:hidden;flex:1;}
+.cal-sem-chip{border-radius:4px;padding:0.22rem 0.4rem;background:var(--bg);border-left:3px solid #7a8494;cursor:pointer;transition:opacity 0.15s;flex-shrink:1;min-height:0;overflow:hidden;}
 .cal-sem-chip:hover{opacity:0.75;}
 .cal-sem-obra{font-size:0.72rem;font-weight:600;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .cal-sem-sub{font-size:0.64rem;color:var(--text-muted);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:0.1rem;}
@@ -2747,8 +2747,7 @@ function renderDashboard() {
  // KPIs
  document.getElementById('dash-kpis').innerHTML=
  '<div class="kpi-card k-info"><div class="kpi-label">Pendientes</div><div class="kpi-value">'+pendientes.length+'</div><div class="kpi-sub">sin despachar aún</div></div>'+
- '<div class="kpi-card k-success"><div class="kpi-label">En camino</div><div class="kpi-value">'+enCamino.length+'</div><div class="kpi-sub">en tránsito ahora</div></div>'+
- '<div class="kpi-card k-danger"><div class="kpi-label">Stock crítico</div><div class="kpi-value">'+stockBajo.length+'</div><div class="kpi-sub">productos ≤ 10 unidades</div></div>';
+ '<div class="kpi-card k-success"><div class="kpi-label">En camino</div><div class="kpi-value">'+enCamino.length+'</div><div class="kpi-sub">en tránsito ahora</div></div>';
 
  // Pedidos de hoy
  const dashHoy=document.getElementById('dash-hoy');
