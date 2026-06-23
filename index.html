@@ -495,7 +495,6 @@ body.compact .kpi-value{font-size:1.6rem;}
    <div class="card" style="margin-bottom:0;padding:1rem"><div id="dash-hoy"></div></div>
    <div class="card" style="margin-bottom:0;padding:1rem"><div id="dash-proximos"></div></div>
    <div class="card" style="margin-bottom:0;padding:1rem"><div id="dash-stock"></div></div>
-   <div class="card" style="margin-bottom:0;padding:1rem"><div id="dash-imports"></div></div>
   </div>
   <div class="inicio-calendar">
    <div class="calendar-toolbar">
@@ -2703,14 +2702,13 @@ function renderDashboard() {
 
  // KPIs
  document.getElementById('dash-kpis').innerHTML=
- '<div class="kpi-card k-accent"><div class="kpi-label">Pedidos hoy</div><div class="kpi-value">'+pedHoy.length+'</div><div class="kpi-sub">con fecha de entrega hoy</div></div>'+
  '<div class="kpi-card k-info"><div class="kpi-label">Pendientes</div><div class="kpi-value">'+pendientes.length+'</div><div class="kpi-sub">sin despachar aún</div></div>'+
  '<div class="kpi-card k-success"><div class="kpi-label">En camino</div><div class="kpi-value">'+enCamino.length+'</div><div class="kpi-sub">en tránsito ahora</div></div>'+
  '<div class="kpi-card k-danger"><div class="kpi-label">Stock crítico</div><div class="kpi-value">'+stockBajo.length+'</div><div class="kpi-sub">productos ≤ 10 unidades</div></div>';
 
  // Pedidos de hoy
  const dashHoy=document.getElementById('dash-hoy');
- dashHoy.innerHTML='<div class="dash-section-title"><span style="background:var(--accent)"></span>Pedidos de hoy</div>';
+ dashHoy.innerHTML='<div class="dash-section-title"><span style="background:var(--accent)"></span>Estado de pedidos actuales</div>';
  if(!pedHoy.length){dashHoy.innerHTML+='<p class="dash-empty">No hay pedidos para hoy.</p>';}
  else{dashHoy.innerHTML+='<div class="dash-list">'+pedHoy.map(p=>'<div class="dash-item"><div class="dash-item-left"><div class="dash-item-obra">'+esc(p.obra)+'</div><div class="dash-item-sub">'+esc(p.empresa)+' · '+esc(p.oc)+'</div></div>'+estadoBadge(p.estado||'pendiente')+'</div>').join('')+'</div>';}
 
