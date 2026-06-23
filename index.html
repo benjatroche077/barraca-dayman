@@ -144,18 +144,22 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .inicio-panel .kpi-value{font-size:1.6rem;}
 .inicio-panel .section-header{margin-bottom:0;}
 .inicio-calendar{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;}
-.inicio-calendar .semana-grid{flex:1;overflow-y:auto;}
+.inicio-calendar .semana-grid{flex:1;overflow-y:auto;min-height:0;}
 .cal-title-group{text-align:center;}
 .cal-title-group h2{font-size:1.15rem;font-weight:700;color:var(--text);}
 .cal-rango{font-size:0.78rem;color:var(--text-muted);font-family:var(--mono);}
-.semana-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:0.6rem;}
-.dia-col{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;min-height:200px;}
-.dia-header{padding:0.6rem 0.8rem;border-bottom:1px solid var(--border);text-align:center;}
-.dia-nombre{font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);}
-.dia-numero{font-size:1.2rem;font-weight:700;color:var(--text);line-height:1;margin-top:0.15rem;font-family:var(--mono);}
-.dia-col.hoy .dia-header{background:rgba(192,57,43,0.1);border-bottom-color:var(--accent);}
-.dia-col.hoy .dia-nombre,.dia-col.hoy .dia-numero{color:var(--accent);}
-.dia-pedidos{padding:0.5rem;display:flex;flex-direction:column;gap:0.35rem;}
+.semana-grid{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;}
+.cal-mes-hdr-row{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:2px;flex-shrink:0;}
+.cal-mes-dia-hdr{text-align:center;font-size:0.68rem;font-weight:700;color:var(--text-muted);padding:0.3rem 0;text-transform:uppercase;letter-spacing:0.07em;}
+.cal-mes-body{display:flex;flex-direction:column;gap:2px;flex:1;min-height:0;overflow-y:auto;}
+.cal-mes-semana{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;flex:1;min-height:80px;}
+.cal-mes-celda{background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:0.35rem;display:flex;flex-direction:column;gap:0.15rem;overflow:hidden;cursor:default;}
+.cal-mes-celda.hoy{border-color:var(--accent);background:rgba(192,57,43,0.05);}
+.cal-mes-celda.otro-mes{background:var(--bg);opacity:0.45;}
+.cal-dia-num{font-size:0.75rem;font-weight:700;color:var(--text-muted);line-height:1;margin-bottom:0.15rem;}
+.cal-mes-celda.hoy .cal-dia-num{color:var(--accent);}
+.cal-mes-chip{font-size:0.67rem;border-radius:3px;padding:0.12rem 0.3rem;background:var(--bg-hover);border-left:2px solid #7a8494;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;font-weight:500;transition:opacity 0.15s;}
+.cal-mes-chip:hover{opacity:0.75;}
 .pedido-chip{background:rgba(192,57,43,0.07);border:1px solid rgba(192,57,43,0.2);border-radius:6px;padding:0.45rem 0.6rem;cursor:default;}
 .pedido-chip:hover{background:rgba(192,57,43,0.13);}
 .pc-obra{font-size:0.74rem;font-weight:700;color:var(--accent);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -495,11 +499,11 @@ body.compact .kpi-value{font-size:1.6rem;}
   </div>
   <div class="inicio-calendar">
    <div class="calendar-toolbar">
-    <button class="btn btn-ghost" onclick="semanaAnterior()"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>Anterior</button>
+    <button class="btn btn-ghost" onclick="semanaAnterior()"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>Mes anterior</button>
     <div class="cal-title-group"><h2 id="cal-titulo"></h2><span id="cal-rango" class="cal-rango"></span></div>
     <div style="display:flex;gap:0.5rem">
      <button class="btn btn-ghost" onclick="window.print()"><svg viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>PDF</button>
-     <button class="btn btn-ghost" onclick="semanaSiguiente()">Siguiente<svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button>
+     <button class="btn btn-ghost" onclick="semanaSiguiente()">Mes siguiente<svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button>
     </div>
    </div>
    <div class="semana-grid" id="semana-grid"></div>
@@ -1781,52 +1785,44 @@ function abrirEdicion(id){
 }
 function cerrarModal(){document.getElementById('modal-overlay').classList.remove('open');}
 
-// ── CALENDARIO ────────────────────────────────────────
-function inicioSemana(d){d=new Date(d);d.setHours(0,0,0,0);const dia=d.getDay();d.setDate(d.getDate()+(dia===0?-6:1-dia));return d;}
-function semanaAnterior(){semanaBase=new Date(semanaBase);semanaBase.setDate(semanaBase.getDate()-7);renderCalendario();}
-function semanaSiguiente(){semanaBase=new Date(semanaBase);semanaBase.setDate(semanaBase.getDate()+7);renderCalendario();}
+// ── CALENDARIO MENSUAL ────────────────────────────────
+function semanaAnterior(){semanaBase=new Date(semanaBase.getFullYear(),semanaBase.getMonth()-1,1);renderCalendario();}
+function semanaSiguiente(){semanaBase=new Date(semanaBase.getFullYear(),semanaBase.getMonth()+1,1);renderCalendario();}
 function renderCalendario(){
  const hoy=new Date();hoy.setHours(0,0,0,0);
  const grid=document.getElementById('semana-grid');
- const dias=['Lun','Mar','Mi&#xe9;','Jue','Vie','S&#xe1;b','Dom'];
- const fin=new Date(semanaBase);fin.setDate(semanaBase.getDate()+6);
- const opts={day:'numeric',month:'short'};
- document.getElementById('cal-rango').textContent=semanaBase.toLocaleDateString('es-UY',opts)+' — '+fin.toLocaleDateString('es-UY',{...opts,year:'numeric'});
- const ma=semanaBase.toLocaleDateString('es-UY',{month:'long',year:'numeric'});
- document.getElementById('cal-titulo').textContent=ma.charAt(0).toUpperCase()+ma.slice(1);
- grid.innerHTML='';
- for(let i=0;i<7;i++){
- const d=new Date(semanaBase);d.setDate(semanaBase.getDate()+i);
- const esHoy=d.getTime()===hoy.getTime();
- const iso=d.toISOString().split('T')[0];
- const pp=pedidos.filter(p=>p.fecha===iso);
- const col=document.createElement('div');
- col.className='dia-col'+(esHoy?' hoy':'');
- col.innerHTML='<div class="dia-header"><div class="dia-nombre">'+dias[i]+'</div><div class="dia-numero">'+d.getDate()+'</div></div>'+
- '<div class="dia-pedidos">'+(pp.length===0
- ?'<span style="font-size:0.68rem;color:var(--text-dim);text-align:center;display:block;padding:0.5rem">Sin pedidos</span>'
- :pp.map(p=>{
- const ec={pendiente:'#7a8494',camino:'#4a90d9',entregado:'#48b87a'}[p.estado||'pendiente'];
- const horaStr=p.horaInicio?(p.horaInicio+(p.horaFin?' – '+p.horaFin:'')):'';
- const prods=(p.productos||[]).map(pr=>'<span class="pc-prod-tag">'+esc(pr.nombre.replace(/^Pallet /,''))+' ×'+pr.cantidad+'</span>').join('');
- const esRetiro=(p.tipoEntrega||'envio')==='retiro';
- const metaStr=[
- horaStr?'⏰ '+horaStr:'',
- p.transportista&&!esRetiro?' '+esc(p.transportista):'',
- esRetiro?' Retiro':'',
- p.comentarios?' '+esc(p.comentarios.slice(0,40))+(p.comentarios.length>40?'…':''):''
- ].filter(Boolean).join(' · ');
- return '<div class="pedido-chip" style="border-left:3px solid '+ec+';cursor:pointer" onclick="verDetallePedidoCal('+p.id+')">'+
- '<span class="pc-obra">'+esc(p.obra)+'</span>'+
- '<span class="pc-empresa">'+esc(p.empresa)+'</span>'+
- '<span class="pc-oc">'+esc(p.oc)+'</span>'+
- (prods?'<div class="pc-productos">'+prods+'</div>':'')+
- (metaStr?'<span class="pc-meta">'+metaStr+'</span>':'')+
- '</div>';
- }).join('')
- )+'</div>';
- grid.appendChild(col);
+ if(!grid)return;
+ const año=semanaBase.getFullYear(),mes=semanaBase.getMonth();
+ const primerDia=new Date(año,mes,1);
+ const ultimoDia=new Date(año,mes+1,0);
+ const titulo=primerDia.toLocaleDateString('es-UY',{month:'long',year:'numeric'});
+ document.getElementById('cal-titulo').textContent=titulo.charAt(0).toUpperCase()+titulo.slice(1);
+ const calRango=document.getElementById('cal-rango'); if(calRango)calRango.textContent='';
+ const ec={pendiente:'#7a8494',camino:'#4a90d9',entregado:'#48b87a'};
+ const dias=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+ // start on Monday
+ let dow=primerDia.getDay(); dow=dow===0?6:dow-1;
+ const cur=new Date(primerDia); cur.setDate(1-dow);
+ let html='<div class="cal-mes-hdr-row">'+dias.map(d=>'<div class="cal-mes-dia-hdr">'+d+'</div>').join('')+'</div>';
+ html+='<div class="cal-mes-body">';
+ while(cur<=ultimoDia||cur.getDay()!==1){
+  html+='<div class="cal-mes-semana">';
+  for(let i=0;i<7;i++){
+   const esHoy=cur.getTime()===hoy.getTime();
+   const esMes=cur.getMonth()===mes;
+   const iso=cur.toISOString().split('T')[0];
+   const pp=pedidos.filter(p=>p.fecha===iso);
+   html+='<div class="cal-mes-celda'+(esHoy?' hoy':'')+(esMes?'':' otro-mes')+'">'+
+    '<div class="cal-dia-num">'+cur.getDate()+'</div>'+
+    pp.map(p=>'<div class="cal-mes-chip" style="border-left-color:'+ec[p.estado||'pendiente']+'" onclick="verDetallePedidoCal('+p.id+')">'+esc(p.obra)+'</div>').join('')+
+   '</div>';
+   cur.setDate(cur.getDate()+1);
+  }
+  html+='</div>';
+  if(cur>ultimoDia&&cur.getDay()===1)break;
  }
+ html+='</div>';
+ grid.innerHTML=html;
 }
 
 // ── DETALLE PEDIDO CALENDARIO ─────────────────────────
