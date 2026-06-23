@@ -1144,7 +1144,7 @@ let obras=[], cotizaciones=[];
 let editandoPedidoId=null;
 let mapaInstance=null, routeLayer=null;
 const geocodeCache={};
-let semanaBase=inicioSemana(new Date());
+let semanaBase=new Date(new Date().getFullYear(),new Date().getMonth(),1);
 let usuarioActual=null;
 let chartInstances={};
 let _remitoIdPendiente=null, _remitoBase64=null;
@@ -1682,7 +1682,7 @@ function renderPedidos(){
  if(filtCliente)lista=lista.filter(p=>p.clienteId==filtCliente);
  if(filtEstado)lista=lista.filter(p=>(p.estado||'pendiente')===filtEstado);
  if(filtDia){lista=lista.filter(p=>p.fecha===filtDia);}
- else if(filtFecha){const hoy=new Date();hoy.setHours(0,0,0,0);lista=lista.filter(p=>{if(!p.fecha)return false;const[y,m,d]=p.fecha.split('-').map(Number);const fd=new Date(y,m-1,d);if(filtFecha==='hoy')return fd.getTime()===hoy.getTime();if(filtFecha==='semana'){const lun=inicioSemana(hoy);const dom=new Date(lun);dom.setDate(lun.getDate()+6);return fd>=lun&&fd<=dom;}if(filtFecha==='mes')return fd.getFullYear()===hoy.getFullYear()&&fd.getMonth()===hoy.getMonth();return true;});}
+ else if(filtFecha){const hoy=new Date();hoy.setHours(0,0,0,0);lista=lista.filter(p=>{if(!p.fecha)return false;const[y,m,d]=p.fecha.split('-').map(Number);const fd=new Date(y,m-1,d);if(filtFecha==='hoy')return fd.getTime()===hoy.getTime();if(filtFecha==='semana'){const lun=new Date(hoy);const dow=lun.getDay();lun.setDate(lun.getDate()+(dow===0?-6:1-dow));const dom=new Date(lun);dom.setDate(lun.getDate()+6);return fd>=lun&&fd<=dom;}if(filtFecha==='mes')return fd.getFullYear()===hoy.getFullYear()&&fd.getMonth()===hoy.getMonth();return true;});}
  const countEl=document.getElementById('filtro-count');
  if(countEl){const h=buscar||filtCliente||filtEstado||filtFecha||filtDia;countEl.style.display=h?'inline-flex':'none';if(h)countEl.textContent=lista.length+' resultado'+(lista.length!==1?'s':'');}
  if(!lista.length){tbody.innerHTML='<tr class="empty-row"><td colspan="9">'+(pedidos.length?'No hay pedidos que coincidan.':'No hay pedidos registrados aún.')+'</td></tr>';return;}
