@@ -534,7 +534,7 @@ body.compact .kpi-value{font-size:1.6rem;}
  <!-- CLIENTES -->
  <section class="tab-content" id="tab-clientes">
  <div class="section-header"><h2>Nuevo Cliente</h2><p class="section-desc">Registrá los datos del cliente para poder asignarle pedidos.</p></div>
- <div class="card">
+ <div class="card" id="card-nuevo-cliente">
  <div class="form-grid">
  <div class="form-group"><label>Empresa <span class="required">*</span></label><input type="text" id="c-empresa" placeholder="Ej: Constructora Norte SA"/></div>
  <div class="form-group"><label>RUT / CI</label><input type="text" id="c-rut" placeholder="Ej: 21836504-0016"/></div>
@@ -769,7 +769,7 @@ body.compact .kpi-value{font-size:1.6rem;}
  <section class="tab-content" id="tab-obras">
  <div class="section-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.8rem">
  <div><h2>Obras</h2><p class="section-desc">Registrá y seguí el estado de cada obra.</p></div>
- <button class="btn btn-primary" onclick="abrirModalObra()"><svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Nueva Obra</button>
+ <button class="btn btn-primary" id="btn-nueva-obra" onclick="abrirModalObra()"><svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Nueva Obra</button>
  </div>
  <div class="card">
  <div class="table-wrapper">
@@ -1151,10 +1151,11 @@ const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const ROL_CONFIG = {
- admin: { tabs:['inicio','clientes','pedidos','gestion','analisis','catalogo','stock','exportar','mapa','importaciones','obras','cotizaciones'], inicio:'inicio' },
- operador: { tabs:['inicio','pedidos','catalogo','stock','importaciones'], inicio:'inicio' },
- readonly: { tabs:['inicio','pedidos','stock','mapa','importaciones'], inicio:'inicio' },
- viewer: { tabs:['inicio','pedidos','gestion','analisis','stock','exportar','mapa','importaciones'], inicio:'inicio' }
+ admin:     { tabs:['inicio','clientes','pedidos','gestion','analisis','catalogo','stock','exportar','mapa','importaciones','obras','cotizaciones'], inicio:'inicio' },
+ logistica: { tabs:['inicio','pedidos','stock'], inicio:'inicio' },
+ viewer:    { tabs:['inicio','clientes','pedidos','gestion','analisis','catalogo','stock','exportar','mapa','importaciones','obras','cotizaciones'], inicio:'inicio' },
+ operador:  { tabs:['inicio','pedidos','stock'], inicio:'inicio' },
+ readonly:  { tabs:['inicio','clientes','pedidos','gestion','analisis','catalogo','stock','exportar','mapa','importaciones','obras','cotizaciones'], inicio:'inicio' },
 };
 const COLORES = ['#c0392b','#48b87a','#4a90d9','#e05555','#9b6fff','#f06a6a','#36c5a0','#e74c3c'];
 
@@ -1583,6 +1584,8 @@ function aplicarPermisos() {
  const rol=usuarioActual?.rol||'readonly';
  const cfg=ROL_CONFIG[rol]||ROL_CONFIG['readonly'];
  const esAdmin=rol==='admin';
+ const esLogistica=rol==='logistica'||rol==='operador';
+ const esViewer=rol==='viewer'||rol==='readonly';
  ['inicio','clientes','pedidos','gestion','analisis','catalogo','stock','exportar','mapa','importaciones','obras','cotizaciones'].forEach(t=>{
  document.getElementById('btn-'+t)?.classList.toggle('hidden',!cfg.tabs.includes(t));
  });
@@ -1596,12 +1599,12 @@ function aplicarPermisos() {
  if(esAdmin){
  document.getElementById('pedidos-titulo').textContent='Nuevo Pedido';
  document.getElementById('pedidos-desc').textContent='Seleccioná una obra, los productos y completá los datos.';
- } else if(esOperador){
+ } else if(esLogistica){
  document.getElementById('pedidos-titulo').textContent='Pedidos';
- document.getElementById('pedidos-desc').textContent='Consultá y gestioná el estado de los pedidos.';
+ document.getElementById('pedidos-desc').textContent='Gestioná el estado de los pedidos.';
  } else {
  document.getElementById('pedidos-titulo').innerHTML='Pedidos <span class="readonly-badge">Solo lectura</span>';
- document.getElementById('pedidos-desc').textContent='Consulta de pedidos coordinados.';
+ document.getElementById('pedidos-desc').textContent='Consulta de pedidos.';
  }
  actualizarRecientes(); actualizarSelectClientes(); renderPedidos(); renderGestion(); renderCalendario();
 }
@@ -1676,7 +1679,7 @@ function botonesEstado(id,estadoActual,esLogistica,esViewer){
  if(esViewer) return '';
  if(esLogistica){
  if(estadoActual==='pendiente')return '<button class="estado-btn btn-camino" onclick="abrirModalCarga('+id+')">En camino</button>';
- if(estadoActual==='camino')return '<span style="font-size:0.72rem;color:var(--text-dim)">Esperando confirmación</span>';
+ if(estadoActual==='camino')return '<button class="estado-btn btn-entregado" onclick="cambiarEstado('+id+',\'entregado\')">Entregado</button>';
  return '';
  }
  const opts={pendiente:'Pendiente',camino:'En camino',entregado:'Entregado'};
@@ -1689,7 +1692,7 @@ function botonesEstado(id,estadoActual,esLogistica,esViewer){
 function renderPedidos(){
  const tbody=document.getElementById('body-pedidos');
  const rol=usuarioActual?.rol;
- const esAdmin=rol==='admin', esLogistica=rol==='readonly', esViewer=rol==='viewer', esOperador=rol==='operador';
+ const esAdmin=rol==='admin', esLogistica=rol==='logistica'||rol==='operador', esViewer=rol==='viewer'||rol==='readonly';
  const buscar=(document.getElementById('filtro-buscar')?.value||'').toLowerCase().trim();
  const filtCliente=document.getElementById('filtro-cliente')?.value||'';
  const filtEstado=document.getElementById('filtro-estado')?.value||'';
@@ -1743,7 +1746,7 @@ function limpiarFiltros(){['filtro-buscar','filtro-cliente','filtro-estado','fil
 function renderGestion(){
  const tbody=document.getElementById('body-clientes');
  if(!clientes.length){tbody.innerHTML='<tr class="empty-row"><td colspan="8">No hay clientes registrados aún.</td></tr>';return;}
- const esViewer=usuarioActual?.rol==='viewer';
+ const esViewer=usuarioActual?.rol==='viewer'||usuarioActual?.rol==='readonly';
  const buscar=(document.getElementById('gestion-buscar')?.value||'').toLowerCase().trim();
  const inactDias=parseInt(document.getElementById('gestion-actividad')?.value||'0');
  const hoyMs=new Date().setHours(0,0,0,0);
@@ -1924,7 +1927,7 @@ function renderCatalogo(){
  '<td id="row-pu-'+p.id+'" style="font-family:var(--mono);font-size:0.8rem;text-align:center;color:var(--accent)">'+(p.precioUnitario!=null?'U$D '+Number(p.precioUnitario).toFixed(2):'<span style="color:var(--text-dim)">—</span>')+'</td>'+
  '<td><span style="font-family:var(--mono);font-size:0.8rem;color:'+(usos>0?'var(--accent)':'var(--text-dim)')+'">'+usos+' pedido'+(usos!==1?'s':'')+'</span></td>'+
  '<td><div class="actions-cell">'+fichaBtn+'</div></td>'+
- '<td><div class="actions-cell"><button class="btn btn-edit" onclick="editarProducto(\''+p.id+'\')">Editar</button><button class="btn btn-danger" onclick="eliminarProducto(\''+p.id+'\')">Eliminar</button></div></td>'+
+ '<td>'+(()=>{const ev=usuarioActual?.rol==="viewer"||usuarioActual?.rol==="readonly";return ev?'<span style="font-size:0.75rem;color:var(--text-dim)">Solo lectura</span>':'<div class="actions-cell"><button class="btn btn-edit" onclick="editarProducto(\''+p.id+'\')">Editar</button><button class="btn btn-danger" onclick="eliminarProducto(\''+p.id+'\')">Eliminar</button></div>';})()+'</td>'+
  '</tr>';
  }).join('');
 }
@@ -1977,7 +1980,7 @@ function proyBadgeInfo(dias) {
 
 function renderStock(){
  const grid=document.getElementById('stock-grid');if(!grid)return;
- const esViewer2=usuarioActual?.rol==='viewer';
+ const esViewer2=usuarioActual?.rol==='viewer'||usuarioActual?.rol==='readonly';
  if(document.getElementById('stock-guardar-btn'))
  document.getElementById('stock-guardar-btn').style.display=esViewer2?'none':'flex';
  if(!PRODUCTOS.length){grid.innerHTML='<p style="color:var(--text-dim);font-style:italic">No hay productos.</p>';return;}
@@ -2707,7 +2710,7 @@ async function eliminarImportacion(id) {
 function renderImportaciones() {
  const tbody=document.getElementById('body-importaciones'); if(!tbody)return;
  const esAdmin=usuarioActual?.rol==='admin';
- const puedeEditarEstado=esAdmin||usuarioActual?.rol==='readonly'||usuarioActual?.rol==='operador';
+ const puedeEditarEstado=esAdmin||usuarioActual?.rol==='logistica'||usuarioActual?.rol==='operador';
  if(!importaciones.length){tbody.innerHTML='<tr class="empty-row"><td colspan="8">No hay importaciones registradas.</td></tr>';return;}
  const ordenEstados=['en_camino','en_puerto','entregado'];
  tbody.innerHTML=importaciones.map(imp=>{
@@ -3025,7 +3028,7 @@ function renderObras(){
  '<td style="font-size:0.8rem;color:var(--text-muted)">'+(esc(o.direccion)||'—')+'</td>'+
  '<td><span class="estado-badge '+ec.cls+'"><span class="estado-dot"></span>'+ec.label+'</span></td>'+
  '<td style="font-family:var(--mono);font-weight:700;color:var(--accent)">'+o.bloquesEstimados+'</td>'+
- '<td><div class="actions-cell"><button class="btn btn-edit" onclick="abrirModalObra(\''+o.id+'\')">Editar</button><button class="btn btn-danger" onclick="eliminarObra(\''+o.id+'\')">Eliminar</button></div></td>'+
+ '<td>'+(()=>{const ev=usuarioActual?.rol==="viewer"||usuarioActual?.rol==="readonly";return ev?'<span style="font-size:0.75rem;color:var(--text-dim)">Solo lectura</span>':'<div class="actions-cell"><button class="btn btn-edit" onclick="abrirModalObra(\''+o.id+'\')">Editar</button><button class="btn btn-danger" onclick="eliminarObra(\''+o.id+'\')">Eliminar</button></div>';})()+'</td>'+
  '</tr>';
  }).join('');
 }
@@ -3106,11 +3109,7 @@ function renderCotizaciones(){
  '<td style="font-family:var(--mono);font-weight:700;color:var(--accent)">'+fmt(c.totalGeneral)+'</td>'+
  '<td><span class="estado-badge '+eCls+'"><span class="estado-dot"></span>'+(c.estado==='enviada'?'Enviada':'Borrador')+'</span></td>'+
  '<td style="font-family:var(--mono);font-size:0.78rem">'+(c.fechaCreacion||'—')+'</td>'+
- '<td><div class="actions-cell">'+
- '<button class="btn btn-ghost" style="font-size:0.74rem" onclick="cargarCotEnGenerador(\''+c.id+'\')">Editar</button>'+
- (c.estado==='borrador'?'<button class="btn btn-ghost" style="font-size:0.74rem" onclick="marcarCotEnviada(\''+c.id+'\')" >Enviar</button>':'')+
- '<button class="btn btn-ghost" style="font-size:0.74rem" onclick="exportarCotPDF(\''+c.id+'\')">PDF</button>'+
- '<button class="btn btn-danger" onclick="eliminarCotizacion(\''+c.id+'\')">Eliminar</button>'+
+ '<td><div class="actions-cell">'+(()=>{const ev=usuarioActual?.rol==="viewer"||usuarioActual?.rol==="readonly";return ev?'<button class="btn btn-ghost" style="font-size:0.74rem" onclick="exportarCotPDF(\''+c.id+'\')">PDF</button>':'<button class="btn btn-ghost" style="font-size:0.74rem" onclick="cargarCotEnGenerador(\''+c.id+'\')">Editar</button>'+(c.estado==='borrador'?'<button class="btn btn-ghost" style="font-size:0.74rem" onclick="marcarCotEnviada(\''+c.id+'\')" >Enviar</button>':'')+'<button class="btn btn-ghost" style="font-size:0.74rem" onclick="exportarCotPDF(\''+c.id+'\')">PDF</button><button class="btn btn-danger" onclick="eliminarCotizacion(\''+c.id+'\')">Eliminar</button>';})()+
  '</div></td>'+
  '</tr>';
  }).join('');
