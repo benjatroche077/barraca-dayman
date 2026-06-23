@@ -460,8 +460,13 @@ body.compact .kpi-value{font-size:1.6rem;}
  <li><button class="sidebar-btn hidden" id="btn-pedidos" onclick="cambiarTab('pedidos')"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="2"/><path d="M9 12h6M9 16h4"/></svg>Pedidos</button></li>
  <li><button class="sidebar-btn hidden" id="btn-calendario" onclick="cambiarTab('calendario')"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Calendario</button></li>
  <li><button class="sidebar-btn hidden" id="btn-analisis" onclick="cambiarTab('analisis')"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Análisis</button></li>
- <li><button class="sidebar-btn hidden" id="btn-catalogo" onclick="cambiarTab('catalogo')"><svg viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>Catálogo</button></li>
- <li><button class="sidebar-btn hidden" id="btn-stock" onclick="cambiarTab('stock')"><svg viewBox="0 0 24 24"><path d="M5 8h14M5 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8m-9 4h4"/></svg>Stock</button></li>
+ <li class="sidebar-group" id="grupo-inventario">
+  <button class="sidebar-group-trigger hidden" id="btn-grupo-inventario"><svg viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>Inventario</button>
+  <div class="sidebar-subgroup">
+   <button class="sidebar-btn hidden" id="btn-catalogo" onclick="cambiarTab('catalogo')"><svg viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>Catálogo</button>
+   <button class="sidebar-btn hidden" id="btn-stock" onclick="cambiarTab('stock')"><svg viewBox="0 0 24 24"><path d="M5 8h14M5 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8m-9 4h4"/></svg>Stock</button>
+  </div>
+ </li>
  <li><button class="sidebar-btn hidden" id="btn-exportar" onclick="cambiarTab('exportar')"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Exportar</button></li>
  <li><button class="sidebar-btn hidden" id="btn-mapa" onclick="cambiarTab('mapa')"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Mapa</button></li>
  <li><button class="sidebar-btn hidden" id="btn-cotizaciones" onclick="cambiarTab('cotizaciones')"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>Cotizaciones</button></li>
@@ -1561,6 +1566,8 @@ function aplicarPermisos() {
  });
  const grupoVisible=['clientes','obras','gestion'].some(t=>cfg.tabs.includes(t));
  document.getElementById('btn-grupo-empresas')?.classList.toggle('hidden',!grupoVisible);
+ const grupoInvVisible=['catalogo','stock'].some(t=>cfg.tabs.includes(t));
+ document.getElementById('btn-grupo-inventario')?.classList.toggle('hidden',!grupoInvVisible);
  const esOperador=rol==='operador';
  document.getElementById('form-nuevo-pedido').style.display=esAdmin?'':'none';
  document.getElementById('th-acc-pedidos').style.display='';
@@ -1588,6 +1595,8 @@ function cambiarTab(tab) {
  document.getElementById('tab-'+tab)?.classList.add('active');
  const grupoEl=document.getElementById('grupo-empresas');
  if(grupoEl)grupoEl.classList.toggle('has-active',['clientes','obras','gestion'].includes(tab));
+ const grupoInvEl=document.getElementById('grupo-inventario');
+ if(grupoInvEl)grupoInvEl.classList.toggle('has-active',['catalogo','stock'].includes(tab));
  if(tab==='inicio')renderCalendario();
  if(tab==='gestion')renderGestion();
  if(tab==='pedidos'){actualizarSelectClientes();renderPedidos();}
