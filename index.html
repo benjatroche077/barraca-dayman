@@ -495,7 +495,7 @@ body.compact .kpi-value{font-size:1.6rem;}
  <div class="section-header"><h2 id="pedidos-titulo">Nuevo Pedido</h2><p class="section-desc" id="pedidos-desc">Seleccioná un cliente, los productos y completá los datos.</p></div>
  <div class="card" id="form-nuevo-pedido">
  <div class="form-grid" style="margin-bottom:1rem">
- <div class="form-group full-width"><label>Cliente / Obra <span class="required">*</span></label><select id="p-cliente"><option value="">— Seleccioná un cliente —</option></select></div>
+ <div class="form-group full-width"><label>Obra <span class="required">*</span></label><select id="p-cliente"><option value="">— Seleccioná una obra —</option></select></div>
  <div class="form-group"><label>Fecha de Entrega <span class="required">*</span></label><input type="date" id="p-fecha"/></div>
  <div class="form-group"><label>Orden de Compra <span class="required">*</span></label><input type="text" id="p-oc" placeholder="Ej: OC-2024-0045"/></div>
  <div class="form-group full-width"><label>Tipo de Entrega <span class="required">*</span></label><select id="p-tipo-entrega" onchange="toggleTransportista()"><option value="envio">Envío a obra</option><option value="retiro">Retiro en centro logístico (a cargo del comprador)</option></select></div>
@@ -1310,7 +1310,7 @@ function editarPedido(id) {
  document.getElementById('pedidos-desc').textContent='Modificá los datos del pedido y guardá los cambios.';
  document.getElementById('btn-guardar-texto').textContent='Actualizar Pedido';
  document.getElementById('btn-cancelar-edicion').style.display='';
- const cs=document.getElementById('p-cliente'); if(cs)cs.value=p.clienteId;
+ const cs=document.getElementById('p-cliente'); if(cs){const obraMatch=obras.find(o=>o.clienteId===p.clienteId&&o.nombre===p.obra)||obras.find(o=>o.clienteId===p.clienteId);cs.value=obraMatch?obraMatch.id:'';}
  const fd=document.getElementById('p-fecha'); if(fd)fd.value=p.fecha||'';
  const oc=document.getElementById('p-oc'); if(oc)oc.value=p.oc||'';
  const ts=document.getElementById('p-tipo-entrega'); if(ts){ts.value=p.tipoEntrega||'envio';toggleTransportista();}
@@ -1328,7 +1328,7 @@ function editarPedido(id) {
 function cancelarEdicionPedido() {
  editandoPedidoId=null;
  document.getElementById('pedidos-titulo').textContent='Nuevo Pedido';
- document.getElementById('pedidos-desc').textContent='Seleccioná un cliente, los productos y completá los datos.';
+ document.getElementById('pedidos-desc').textContent='Seleccioná una obra, los productos y completá los datos.';
  document.getElementById('btn-guardar-texto').textContent='Guardar Pedido';
  document.getElementById('btn-cancelar-edicion').style.display='none';
  limpiar(['p-oc','p-comentarios','p-transportista','p-hora-inicio','p-hora-fin']);
@@ -1338,11 +1338,13 @@ function cancelarEdicionPedido() {
 }
 
 async function guardarPedido() {
- const clienteId=val('p-cliente'),fecha=val('p-fecha'),oc=val('p-oc');
- if(!clienteId||!fecha||!oc){toast('Completá Cliente, Fecha y OC',true);return;}
+ const obraId=val('p-cliente'),fecha=val('p-fecha'),oc=val('p-oc');
+ if(!obraId||!fecha||!oc){toast('Completá Obra, Fecha y OC',true);return;}
  const sel=getProductosSeleccionados();
  if(!sel.length){toast('Seleccioná al menos un producto',true);return;}
- const c=clientes.find(x=>x.id==clienteId); if(!c)return;
+ const obraSel=obras.find(x=>x.id==obraId); if(!obraSel){toast('Obra no encontrada',true);return;}
+ const c=clientes.find(x=>x.id===obraSel.clienteId)||{id:obraSel.clienteId,empresa:''};
+ const clienteId=c.id;
 
  // ── MODO EDICIÓN ──
  if(editandoPedidoId) {
@@ -1358,7 +1360,7 @@ async function guardarPedido() {
  setSyncStatus('syncing');
  const tipoEntrega=val('p-tipo-entrega')||'envio';
  const horaInicio=val('p-hora-inicio')||null, horaFin=val('p-hora-fin')||null;
- const {error:eu}=await sb.from('pedidos').update({cliente_id:c.id,empresa:c.empresa,obra:c.obra||c.empresa,fecha,oc,transportista:tipoEntrega==='retiro'?null:val('p-transportista'),comentarios:val('p-comentarios'),tipo_entrega:tipoEntrega,hora_inicio:horaInicio,hora_fin:horaFin}).eq('id',editandoPedidoId);
+ const {error:eu}=await sb.from('pedidos').update({cliente_id:c.id,empresa:c.empresa,obra:obraSel.nombre,fecha,oc,transportista:tipoEntrega==='retiro'?null:val('p-transportista'),comentarios:val('p-comentarios'),tipo_entrega:tipoEntrega,hora_inicio:horaInicio,hora_fin:horaFin}).eq('id',editandoPedidoId);
  if(eu){toast('Error: '+eu.message,true);setSyncStatus('offline');return;}
  await sb.from('pedido_items').delete().eq('pedido_id',editandoPedidoId);
  await sb.from('pedido_items').insert(sel.map(pr=>({pedido_id:editandoPedidoId,producto_id:pr.id,nombre:pr.nombre,cantidad:pr.cantidad})));
@@ -1366,7 +1368,7 @@ async function guardarPedido() {
  stock[pid]=(stock[pid]||0)+delta;
  await sb.from('stock').upsert({producto_id:pid,cantidad:stock[pid],updated_at:new Date().toISOString()});
  }
- pedidos[idx]={...viejoPed,clienteId:c.id,empresa:c.empresa,obra:c.obra||c.empresa,fecha,oc,transportista:tipoEntrega==='retiro'?null:val('p-transportista'),comentarios:val('p-comentarios'),tipoEntrega,horaInicio,horaFin,productos:sel};
+ pedidos[idx]={...viejoPed,clienteId:c.id,empresa:c.empresa,obra:obraSel.nombre,fecha,oc,transportista:tipoEntrega==='retiro'?null:val('p-transportista'),comentarios:val('p-comentarios'),tipoEntrega,horaInicio,horaFin,productos:sel};
  setSyncStatus('online');
  toast('Pedido "'+oc+'" actualizado ');
  cancelarEdicionPedido();
@@ -1380,14 +1382,14 @@ async function guardarPedido() {
  setSyncStatus('syncing');
  const tipoEntrega=val('p-tipo-entrega')||'envio';
  const horaInicio=val('p-hora-inicio')||null, horaFin=val('p-hora-fin')||null;
- const {data:pd,error:pe}=await sb.from('pedidos').insert({cliente_id:c.id,empresa:c.empresa,obra:c.obra||c.empresa,fecha,oc,transportista:tipoEntrega==='retiro'?null:val('p-transportista'),comentarios:val('p-comentarios'),estado:'pendiente',tipo_entrega:tipoEntrega,hora_inicio:horaInicio,hora_fin:horaFin}).select().single();
+ const {data:pd,error:pe}=await sb.from('pedidos').insert({cliente_id:c.id,empresa:c.empresa,obra:obraSel.nombre,fecha,oc,transportista:tipoEntrega==='retiro'?null:val('p-transportista'),comentarios:val('p-comentarios'),estado:'pendiente',tipo_entrega:tipoEntrega,hora_inicio:horaInicio,hora_fin:horaFin}).select().single();
  if(pe){toast('Error: '+pe.message,true);setSyncStatus('offline');return;}
  await sb.from('pedido_items').insert(sel.map(pr=>({pedido_id:pd.id,producto_id:pr.id,nombre:pr.nombre,cantidad:pr.cantidad})));
  for(const pr of sel){
  stock[pr.id]=(stock[pr.id]||0)-pr.cantidad;
  await sb.from('stock').upsert({producto_id:pr.id,cantidad:stock[pr.id],updated_at:new Date().toISOString()});
  }
- pedidos.push({id:pd.id,clienteId:c.id,empresa:c.empresa,obra:c.obra||c.empresa,fecha,oc,transportista:tipoEntrega==='retiro'?null:val('p-transportista'),comentarios:val('p-comentarios'),estado:'pendiente',tipoEntrega,horaInicio,horaFin,productos:sel});
+ pedidos.push({id:pd.id,clienteId:c.id,empresa:c.empresa,obra:obraSel.nombre,fecha,oc,transportista:tipoEntrega==='retiro'?null:val('p-transportista'),comentarios:val('p-comentarios'),estado:'pendiente',tipoEntrega,horaInicio,horaFin,productos:sel});
  setSyncStatus('online');
  limpiar(['p-oc','p-comentarios','p-transportista','p-hora-inicio','p-hora-fin']);
  document.getElementById('p-cliente').value=''; document.getElementById('p-fecha').value='';
@@ -1528,7 +1530,7 @@ function aplicarPermisos() {
  document.getElementById('th-acc-pedidos').style.display='';
  if(esAdmin){
  document.getElementById('pedidos-titulo').textContent='Nuevo Pedido';
- document.getElementById('pedidos-desc').textContent='Seleccioná un cliente, los productos y completá los datos.';
+ document.getElementById('pedidos-desc').textContent='Seleccioná una obra, los productos y completá los datos.';
  } else if(esOperador){
  document.getElementById('pedidos-titulo').textContent='Pedidos';
  document.getElementById('pedidos-desc').textContent='Consultá y gestioná el estado de los pedidos.';
@@ -1590,8 +1592,8 @@ function resetProductos(){PRODUCTOS.forEach(p=>{const inp=document.getElementByI
 function actualizarRecientes(){const w=document.getElementById('clientes-recientes'),l=document.getElementById('lista-recientes');if(!clientes.length){w.style.display='none';return;}w.style.display='block';l.innerHTML=[...clientes].reverse().slice(0,8).map(c=>'<span class="chip">'+esc(c.empresa)+'</span>').join('');}
 function actualizarSelectClientes(){
  const sel=document.getElementById('p-cliente');
- sel.innerHTML='<option value="">&#x2014; Seleccioná un cliente &#x2014;</option>';
- clientes.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.empresa;sel.appendChild(o);});
+ sel.innerHTML='<option value="">&#x2014; Seleccioná una obra &#x2014;</option>';
+ obras.forEach(o=>{const cl=clientes.find(c=>c.id===o.clienteId);const opt=document.createElement('option');opt.value=o.id;opt.textContent=o.nombre+(cl?' — '+cl.empresa:'');sel.appendChild(opt);});
  const fc=document.getElementById('filtro-cliente'); if(!fc)return;
  const actual=fc.value;
  fc.innerHTML='<option value="">Todos los clientes</option>';
@@ -2697,7 +2699,7 @@ function copiarPedido(id) {
  cambiarTab('pedidos');
  setTimeout(()=>{
  document.getElementById('form-nuevo-pedido')?.scrollIntoView({behavior:'smooth',block:'start'});
- const cs=document.getElementById('p-cliente'); if(cs)cs.value=p.clienteId;
+ const cs=document.getElementById('p-cliente'); if(cs){const obraMatch=obras.find(o=>o.clienteId===p.clienteId&&o.nombre===p.obra)||obras.find(o=>o.clienteId===p.clienteId);cs.value=obraMatch?obraMatch.id:'';}
  const ts=document.getElementById('p-tipo-entrega'); if(ts){ts.value=p.tipoEntrega||'envio';toggleTransportista();}
  const tr=document.getElementById('p-transportista'); if(tr)tr.value=p.transportista||'';
  const hi=document.getElementById('p-hora-inicio'); if(hi)hi.value=p.horaInicio||'';
