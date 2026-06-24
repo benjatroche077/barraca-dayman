@@ -580,7 +580,7 @@ body.compact .kpi-value{font-size:1.6rem;}
  <button class="btn btn-primary" id="btn-guardar-pedido" onclick="guardarPedido()"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg><span id="btn-guardar-texto">Guardar Pedido</span></button>
  </div>
  </div>
- <div class="section-header" style="margin-top:1rem"><h2>Pedidos recientes <span id="pedidos-recientes-badge" class="badge-count" style="display:none"></span></h2><p class="section-desc">Últimos 7 días</p></div>
+ <div class="section-header" style="margin-top:1rem"><h2>Pedidos activos <span id="pedidos-recientes-badge" class="badge-count" style="display:none"></span></h2><p class="section-desc">Pendientes y en camino</p></div>
  <div class="filtros-bar">
  <input type="text" id="filtro-buscar" placeholder=" Buscar por obra, empresa u OC..." oninput="renderPedidos()"/>
  <select id="filtro-cliente" onchange="renderPedidos()"><option value="">Todos los clientes</option></select>
@@ -1728,11 +1728,9 @@ function renderPedidos(){
  const countEl=document.getElementById('filtro-count');
  const hayFiltro=buscar||filtCliente||filtEstado||filtFecha||filtDia;
  if(countEl){countEl.style.display=hayFiltro?'inline-flex':'none';if(hayFiltro)countEl.textContent=lista.length+' resultado'+(lista.length!==1?'s':'');}
- // split: recientes (últimos 7 días + futuros) vs historial
- const hoy7=new Date();hoy7.setHours(0,0,0,0);hoy7.setDate(hoy7.getDate()-7);
- const iso7=hoy7.toISOString().split('T')[0];
- const recientes=lista.filter(p=>!p.fecha||p.fecha>=iso7);
- const historial=lista.filter(p=>p.fecha&&p.fecha<iso7);
+ // split: activos (pendiente/en camino) vs historial (entregado)
+ const recientes=lista.filter(p=>!p.estado||p.estado==='pendiente'||p.estado==='camino');
+ const historial=lista.filter(p=>p.estado==='entregado');
  // badge recientes
  const recBadge=document.getElementById('pedidos-recientes-badge');
  if(recBadge){recBadge.style.display=recientes.length?'inline-flex':'none';recBadge.textContent=recientes.length;}
