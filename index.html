@@ -1345,7 +1345,7 @@ async function guardarCliente() {
  setSyncStatus('syncing');
  const grupoId=document.getElementById('c-grupo')?.value||null;
  const precioM3=parseFloat(document.getElementById('c-precio-m3')?.value)||null;
- const {data,error}=await sb.from('clientes').insert({empresa,rut:val('c-rut')||null,email:val('c-email')||null,telefono:val('c-telefono'),grupo_id:grupoId||null,precio_usd_m3:precioM3}).select().single();
+ const {data,error}=await sb.from('clientes').insert({empresa,obra:empresa,rut:val('c-rut')||null,email:val('c-email')||null,telefono:val('c-telefono'),grupo_id:grupoId||null,precio_usd_m3:precioM3}).select().single();
  if(error){toast('Error: '+error.message,true);setSyncStatus('offline');return;}
  clientes.push(data);
  setSyncStatus('online');
