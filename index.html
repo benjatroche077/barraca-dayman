@@ -3003,6 +3003,8 @@ function generarRemitoPDF_byId(id){
 
 function generarRemitoPDF(pedido,numero){
  const cliente=clientes.find(c=>c.id===pedido.clienteId)||{};
+ const obra=obras.find(o=>o.clienteId===pedido.clienteId&&o.nombre===pedido.obra)||{};
+ const direccionEntrega=obra.direccion||cliente.direccion||'';
  const fecha=new Date().toLocaleDateString('es-UY',{day:'2-digit',month:'2-digit',year:'numeric'});
  const e=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
  const prods=pedido.productos||[];
@@ -3033,7 +3035,7 @@ function generarRemitoPDF(pedido,numero){
  </div>
  <div style="margin-bottom:18px;padding:4px 0">
  ${FLD('NOMBRE :', pedido.obra)}
- ${FLD('DIRECCION', cliente.direccion)}
+ ${FLD('DIRECCION', direccionEntrega)}
  ${FLD('N DE ORDEN:', pedido.oc)}
  ${FLD('POR CUENTA Y ORDEN:', 'DELMITA SA')}
  </div>
@@ -3058,7 +3060,7 @@ function generarRemitoPDF(pedido,numero){
  ${TRFLD('Nombre', pedido.transportista)}
  ${TRFLD('Datos del Veh&iacute;culo','')}
  ${TRFLD('Chofer','')}
- ${TRFLD('Lugar de Entrega', cliente.direccion||pedido.obra||'')}
+ ${TRFLD('Lugar de Entrega', direccionEntrega||pedido.obra||'')}
  </div>
  <script>window.print();<\/script></body></html>`);
  win.document.close();
