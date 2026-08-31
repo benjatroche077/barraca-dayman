@@ -1951,7 +1951,7 @@ function verDetallePedidoCal(id) {
  ROW('Fecha',formatFecha(p.fecha))+
  (horaStr?ROW('Hora',horaStr):'')+
  ROW('Orden de compra',esc(p.oc))+
- (cl.direccion?ROW('Dirección',esc(cl.direccion)):'')+
+ (direccionPedido(p)?ROW('Dirección',esc(direccionPedido(p))):'')+
  (cl.nombre?ROW('Contacto',esc(cl.nombre)):'')+
  (cl.telefono?ROW('Teléfono',esc(cl.telefono)):'')+
  ROW('Entrega',esRetiro?' Retiro en depósito':' Envío a obra')+
