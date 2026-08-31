@@ -970,6 +970,7 @@ body.compact .kpi-value{font-size:1.6rem;}
  <div class="modal-body" id="modal-detalle-cal-body"></div>
  <div class="modal-footer">
  <button class="btn btn-ghost" onclick="document.getElementById('modal-detalle-cal').classList.remove('open')">Cerrar</button>
+ <button class="btn btn-primary" onclick="copiarPedidoWpp()"><svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copiar</button>
  </div>
  </div>
 </div>
@@ -1929,8 +1930,10 @@ function renderCalendario(){
 }
 
 // ── DETALLE PEDIDO CALENDARIO ─────────────────────────
+let detallePedidoActualId=null;
 function verDetallePedidoCal(id) {
  const p=pedidos.find(x=>x.id===id); if(!p)return;
+ detallePedidoActualId=id;
  const cl=clientes.find(c=>c.id===p.clienteId)||{};
  const ec={pendiente:'#7a8494',camino:'#4a90d9',entregado:'#48b87a'}[p.estado||'pendiente'];
  const estadoLabel={pendiente:'Pendiente',camino:'En camino',entregado:'Entregado'}[p.estado||'pendiente'];
@@ -1960,6 +1963,45 @@ function verDetallePedidoCal(id) {
  (p.comentarios?ROW('Comentarios',esc(p.comentarios)):'')+
  (prods?'<div style="margin-top:0.8rem"><div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-muted);margin-bottom:0.4rem">Productos</div>'+prods+'</div>':'');
  document.getElementById('modal-detalle-cal').classList.add('open');
+}
+
+async function copiarPedidoWpp() {
+ const p=pedidos.find(x=>x.id===detallePedidoActualId); if(!p){toast('Pedido no encontrado',true);return;}
+ const cl=clientes.find(c=>c.id===p.clienteId)||{};
+ const esRetiro=(p.tipoEntrega||'envio')==='retiro';
+ const direccion=direccionPedido(p);
+ const horaStr=p.horaInicio?(p.horaInicio+(p.horaFin?' – '+p.horaFin:'')):null;
+ const L=[];
+ L.push('*PEDIDO — '+(p.obra||'')+'*');
+ if(p.empresa) L.push('Empresa: '+p.empresa);
+ L.push('Fecha: '+formatFecha(p.fecha));
+ if(horaStr) L.push('Hora: '+horaStr);
+ if(p.oc) L.push('OC: '+p.oc);
+ L.push('Entrega: '+(esRetiro?'Retiro en depósito':'Envío a obra'));
+ if(!esRetiro&&direccion) L.push('Dirección: '+direccion);
+ if(cl.nombre) L.push('Contacto: '+cl.nombre);
+ if(cl.telefono) L.push('Teléfono: '+cl.telefono);
+ if(!esRetiro&&p.transportista) L.push('Transportista: '+p.transportista);
+ const prods=(p.productos||[]);
+ if(prods.length){
+ L.push('');
+ L.push('*Productos:*');
+ prods.forEach(pr=>L.push('• '+pr.nombre+' × '+pr.cantidad));
+ }
+ if(p.comentarios){ L.push(''); L.push('Comentarios: '+p.comentarios); }
+ const texto=L.join('\n');
+ try{
+ await navigator.clipboard.writeText(texto);
+ toast('Pedido copiado ');
+ }catch(e){
+ // Fallback para navegadores sin permiso de clipboard
+ const ta=document.createElement('textarea');
+ ta.value=texto; ta.style.position='fixed'; ta.style.opacity='0';
+ document.body.appendChild(ta); ta.select();
+ try{document.execCommand('copy');toast('Pedido copiado ');}
+ catch(_){toast('No se pudo copiar',true);}
+ document.body.removeChild(ta);
+ }
 }
 
 // ── CATÁLOGO ──────────────────────────────────────────
