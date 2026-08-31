@@ -2557,6 +2557,13 @@ async function mostrarRuta(destLat, destLon, obraName) {
  } catch(e) { toast('Error calculando ruta', true); }
 }
 
+// Dirección de entrega de un pedido: la de la obra correspondiente, con fallback a la del cliente.
+function direccionPedido(p){
+ const obra=obras.find(o=>o.clienteId===p.clienteId&&o.nombre===p.obra);
+ const cliente=clientes.find(c=>c.id===p.clienteId);
+ return (obra&&obra.direccion)||(cliente&&cliente.direccion)||'';
+}
+
 async function renderMapa() {
  if (!mapaInstance) {
  mapaInstance = L.map('map-container').setView([-34.9011,-56.1645], 11);
@@ -2573,7 +2580,7 @@ async function renderMapa() {
  const kpiEl = document.getElementById('mapa-kpi');
  const leyenda = document.getElementById('mapa-leyenda');
  const totalPend = pendientes.length;
- const conDir = pendientes.filter(p=>{ const c=clientes.find(x=>x.id===p.clienteId); return c&&c.direccion; }).length;
+ const conDir = pendientes.filter(p=>direccionPedido(p)).length;
 
  kpiEl.innerHTML =
  '<div class="mapa-kpi-item"><strong>'+totalPend+'</strong>Pedidos pendientes</div>'+
@@ -2606,10 +2613,10 @@ async function renderMapa() {
 
  for (let i=0; i<pendientes.length; i++) {
  const p = pendientes[i];
- const cliente = clientes.find(c=>c.id===p.clienteId);
- if (!cliente||!cliente.direccion) { sinDir.push(p); continue; }
+ const direccion = direccionPedido(p);
+ if (!direccion) { sinDir.push(p); continue; }
  if (i>0) await new Promise(r=>setTimeout(r,350));
- const coords = await geocodificar(cliente.direccion);
+ const coords = await geocodificar(direccion);
  if (coords) {
  const color = mapaColorEmpresa(empresaMap, p.empresa);
  const cLat=coords[0], cLon=coords[1];
@@ -2622,7 +2629,7 @@ async function renderMapa() {
  '<div style="font-size:0.75rem;color:#64748b">'+esc(p.empresa)+'</div>'+
  '<div style="font-size:0.74rem;color:#64748b;font-family:JetBrains Mono,monospace;margin-top:0.2rem">OC: '+esc(p.oc)+'</div>'+
  '<div style="font-size:0.74rem;color:#64748b;margin-top:0.2rem">Entrega: '+formatFecha(p.fecha)+'</div>'+
- '<div style="font-size:0.7rem;color:#94a3b8;margin-top:0.35rem;border-top:1px solid #dce0e6;padding-top:0.3rem"> '+esc(cliente.direccion)+'</div>'+
+ '<div style="font-size:0.7rem;color:#94a3b8;margin-top:0.35rem;border-top:1px solid #dce0e6;padding-top:0.3rem"> '+esc(direccion)+'</div>'+
  '<button class="mapa-btn-ruta" style="margin-top:0.6rem;width:100%" onclick="mostrarRuta('+cLat+','+cLon+',\''+p.obra.replace(/'/g,"\\'")+'\')" >Ver ruta desde Logística 74</button>'+
  '</div>';
  markers.push(L.marker(coords,{icon:MAPA_ICON(color)}).addTo(mapaInstance).bindPopup(popup));
