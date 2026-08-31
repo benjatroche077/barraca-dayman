@@ -3130,7 +3130,10 @@ function generarRemitoPDF(pedido,numero){
  const cliente=clientes.find(c=>c.id===pedido.clienteId)||{};
  const obra=obras.find(o=>o.clienteId===pedido.clienteId&&o.nombre===pedido.obra)||{};
  const direccionEntrega=obra.direccion||cliente.direccion||'';
- const fecha=new Date().toLocaleDateString('es-UY',{day:'2-digit',month:'2-digit',year:'numeric'});
+ // Fecha del remito = fecha de envío del pedido (Fecha de Entrega); si falta, hoy.
+ const fecha=pedido.fecha
+ ?(()=>{const[y,m,d]=pedido.fecha.split('-');return d+'/'+m+'/'+y;})()
+ :new Date().toLocaleDateString('es-UY',{day:'2-digit',month:'2-digit',year:'numeric'});
  const e=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
  const prods=pedido.productos||[];
  const CELL='border:1px solid #aaa;padding:5px 8px;height:28px;font-size:11px;';
@@ -3159,6 +3162,7 @@ function generarRemitoPDF(pedido,numero){
  </div>
  </div>
  <div style="margin-bottom:18px;padding:4px 0">
+ ${FLD('EMPRESA :', pedido.empresa)}
  ${FLD('NOMBRE :', pedido.obra)}
  ${FLD('DIRECCION', direccionEntrega)}
  ${FLD('N DE ORDEN:', pedido.oc)}
