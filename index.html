@@ -2046,21 +2046,27 @@ async function _pedidoImagenBlob(p){
 async function compartirPedidoImagen(){
  const p=pedidos.find(x=>x.id===detallePedidoActualId); if(!p){toast('Pedido no encontrado',true);return;}
  if(typeof html2canvas==='undefined'){toast('No se pudo generar la imagen',true);return;}
- toast('Generando imagen...');
+ const nombre=('pedido-'+(p.obra||'')+'-'+(p.oc||'')).replace(/[^a-z0-9]+/gi,'-').toLowerCase()+'.png';
+
+ // 1) Copiar imagen al portapapeles.
+ // Se pasa la PROMESA del blob a ClipboardItem y se llama write() de inmediato,
+ // sin await previo, para no perder el gesto del usuario (requerido por Safari).
+ if(navigator.clipboard&&window.ClipboardItem){
+ try{
+ const blobPromise=_pedidoImagenBlob(p).then(b=>{ if(!b) throw new Error('sin blob'); return b; });
+ await navigator.clipboard.write([new ClipboardItem({'image/png':blobPromise})]);
+ toast('Imagen copiada — pegala en WhatsApp ');
+ return;
+ }catch(e){ console.warn('No se pudo copiar la imagen al portapapeles:',e); }
+ }
+
+ // Si no se pudo copiar, generamos el blob para compartir/descargar
  let blob;
  try{ blob=await _pedidoImagenBlob(p); }
  catch(e){ toast('Error al generar la imagen',true); return; }
  if(!blob){ toast('Error al generar la imagen',true); return; }
- const nombre=('pedido-'+(p.obra||'')+'-'+(p.oc||'')).replace(/[^a-z0-9]+/gi,'-').toLowerCase()+'.png';
- // 1) Copiar imagen al portapapeles
- try{
- if(navigator.clipboard&&window.ClipboardItem){
- await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
- toast('Imagen copiada — pegala en WhatsApp ');
- return;
- }
- }catch(e){/* cae a compartir/descargar */}
- // 2) Compartir nativo (celular, donde no se puede copiar imagen) → mandar a WhatsApp
+
+ // 2) Compartir nativo (celular) → mandar directo a WhatsApp
  const file=new File([blob],nombre,{type:'image/png'});
  if(navigator.canShare&&navigator.canShare({files:[file]})){
  try{ await navigator.share({files:[file],title:'Pedido '+(p.obra||'')}); return; }
